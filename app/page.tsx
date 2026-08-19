@@ -1,15 +1,46 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Scissors, MapPin, Clock, Phone, MessageSquare, Share2 } from "lucide-react"
+import { MapPin, Phone } from "lucide-react"
+import { FaInstagram, FaWhatsapp } from "react-icons/fa"
 
 export default function Home() {
+  const cuts = [
+    "/cuts/corte1.jpg",
+    "/cuts/corte2.jpg",
+    "/cuts/corte3.jpg",
+    "/cuts/corte4.jpg",
+    "/cuts/corte5.jpg",
+    "/cuts/corte6.jpg",
+    "/cuts/corte7.jpg",
+    "/cuts/corte8.jpg",
+    "/cuts/corte9.jpg",
+  ]
+
+  const [currentCutIndex, setCurrentCutIndex] = useState(0)
+
+  // Carrossel trocando automaticamente a cada 2 segundos (2000ms)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentCutIndex((prevIndex) => (prevIndex + 1) % cuts.length)
+    }, 2000)
+
+    return () => clearInterval(timer)
+  }, [cuts.length])
+
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 pb-10">
-      {/* 1. Hero Header */}
+      {/* 1. Hero Header com Logo do Léo */}
       <div className="relative bg-zinc-900 border-b border-zinc-800 p-6 text-center">
         <div className="max-w-md mx-auto space-y-3">
-          <div className="mx-auto w-16 h-16 bg-amber-500 rounded-full flex items-center justify-center text-zinc-950 font-bold">
-            <Scissors className="w-8 h-8" />
+          <div className="mx-auto w-24 h-24 rounded-full overflow-hidden border-2 border-amber-500 bg-white flex items-center justify-center p-1 shadow-lg">
+            <img 
+              src="/logo.jpg" 
+              alt="Léo Porto Cortês Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Léo Porto Cortês</h1>
           <p className="text-sm text-zinc-400 flex items-center justify-center gap-1">
@@ -38,18 +69,32 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* Cartão Redes Sociais */}
+        {/* Cartão Redes Sociais com Ícones Oficiais */}
         <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
           <CardContent className="p-5 space-y-3">
             <h3 className="font-bold text-lg text-zinc-200">Redes Sociais</h3>
             <p className="text-sm text-zinc-400">Siga nosso perfil para ver cortes e inspiração.</p>
             <div className="flex gap-2">
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 text-xs">
-                <Share2 className="w-4 h-4" /> Instagram
-              </Button>
-              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white gap-1.5 text-xs">
-                <MessageSquare className="w-4 h-4" /> WhatsApp
-              </Button>
+              <a 
+                href="https://www.instagram.com/leoportocortes?igsh=MWY5ZHFvbGF2NWQ1bg==" 
+                target="_blank" 
+                rel="noreferrer"
+                className="flex-1"
+              >
+                <Button size="sm" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white gap-2 text-xs font-semibold">
+                  <FaInstagram className="w-4 h-4" /> Instagram
+                </Button>
+              </a>
+              <a 
+                href="https://wa.me/5519991399801" 
+                target="_blank" 
+                rel="noreferrer"
+                className="flex-1"
+              >
+                <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 text-white gap-2 text-xs font-semibold">
+                  <FaWhatsapp className="w-4 h-4" /> WhatsApp
+                </Button>
+              </a>
             </div>
           </CardContent>
         </Card>
@@ -66,15 +111,24 @@ export default function Home() {
         </Card>
       </section>
 
-      {/* 3. Seção Nossos Cortes */}
+      {/* 3. Carrossel Automático de Cortes */}
       <section className="max-w-md mx-auto px-4 mt-10 text-center space-y-4">
         <h2 className="text-lg font-semibold text-zinc-200">Nossos Cortes</h2>
         <div className="relative aspect-[4/5] rounded-xl overflow-hidden border-2 border-zinc-800 bg-zinc-900 shadow-xl">
           <img 
-            src="https://fgrdfpdtvjuzgkvbvgjh.supabase.co/storage/v1/object/public/cuts/corte1.jpg" 
-            alt="Exemplo de corte da barbearia"
-            className="w-full h-full object-cover"
+            src={cuts[currentCutIndex]} 
+            alt={`Corte ${currentCutIndex + 1}`}
+            className="w-full h-full object-cover transition-all duration-500 ease-in-out"
           />
+          {/* Indicador de posição das fotos */}
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm">
+            {cuts.map((_, idx) => (
+              <div 
+                key={idx} 
+                className={`w-2 h-2 rounded-full transition-all ${idx === currentCutIndex ? 'bg-amber-500 w-4' : 'bg-white/50'}`}
+              />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -86,12 +140,12 @@ export default function Home() {
         </p>
       </section>
 
-      {/* Rodapé / Contato */}
+      {/* Rodapé */}
       <footer className="max-w-4xl mx-auto px-4 mt-12 text-center text-xs text-zinc-600 space-y-2 border-t border-zinc-800 pt-6">
         <p className="flex items-center justify-center gap-1.5">
-          <Phone className="w-3.5 h-3.5 text-amber-600" /> (19) 99999-9999
+          <Phone className="w-3.5 h-3.5 text-amber-600" /> (19) 99139-9801
         </p>
-        <p>© 2026 Léo Porto Cortês. Todos os direitos reservados.</p>
+        <p>© 2026 Léo Porto Cortes. Todos os direitos reservados.</p>
       </footer>
     </main>
   )
