@@ -30,7 +30,7 @@ export default function Home() {
   }, [cuts.length])
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 font-sans pb-10">
+    <main className="min-h-screen bg-zinc-950 text-zinc-100 font-sans tracking-tight antialiased pb-10">
       {/* Hero Header com Logo Retangular / Horizontal */}
       <div className="relative bg-zinc-900 border-b border-zinc-800 p-6 text-center">
         <div className="max-w-md mx-auto space-y-3">
@@ -41,7 +41,7 @@ export default function Home() {
               className="w-full h-full object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Léo Porto Cortês</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-white">Léo Porto Cortês</h1>
           <p className="text-sm text-zinc-400 flex items-center justify-center gap-1 font-medium">
             <MapPin className="w-4 h-4 text-zinc-400" /> Barbearia & Estilo
           </p>
@@ -60,8 +60,8 @@ export default function Home() {
       <section className="max-w-4xl mx-auto px-4 mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
           <CardContent className="p-5 space-y-2">
-            <h3 className="font-bold text-lg text-zinc-200">Quem Somos</h3>
-            <p className="text-sm text-zinc-400 leading-relaxed">
+            <h3 className="font-bold text-lg text-zinc-100 tracking-tight">Quem Somos</h3>
+            <p className="text-sm text-zinc-400 leading-relaxed font-normal">
               Profissionais especializados em cortes masculinos e estilos de barba. Ambiente aconchegante com atendimento personalizado.
             </p>
           </CardContent>
@@ -69,8 +69,8 @@ export default function Home() {
 
         <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
           <CardContent className="p-5 space-y-3">
-            <h3 className="font-bold text-lg text-zinc-200">Redes Sociais</h3>
-            <p className="text-sm text-zinc-400">Siga nosso perfil para ver cortes e inspiração.</p>
+            <h3 className="font-bold text-lg text-zinc-100 tracking-tight">Redes Sociais</h3>
+            <p className="text-sm text-zinc-400 font-normal">Siga nosso perfil para ver cortes e inspiração.</p>
             <div className="flex gap-2">
               <a href="https://instagram.com" target="_blank" rel="noreferrer" className="flex-1">
                 <Button size="sm" className="w-full bg-pink-600 hover:bg-pink-700 text-white gap-2 text-xs font-semibold">
@@ -88,8 +88,8 @@ export default function Home() {
 
         <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
           <CardContent className="p-5 space-y-2">
-            <h3 className="font-bold text-lg text-zinc-200">Preço Médio</h3>
-            <div className="text-sm text-zinc-400 space-y-1">
+            <h3 className="font-bold text-lg text-zinc-100 tracking-tight">Preço Médio</h3>
+            <div className="text-sm text-zinc-400 space-y-1 font-normal">
               <p>Corte: R$ 45 — Barba: R$ 35 — Combo: R$ 70</p>
               <p>Pezinho / Sobrancelha: R$ 20</p>
             </div>
@@ -99,11 +99,11 @@ export default function Home() {
 
       {/* Carrossel de Cortes */}
       <section className="max-w-md mx-auto px-4 mt-10 text-center space-y-4">
-        <h2 className="text-xl font-bold text-zinc-100">Nossos Cortes</h2>
+        <h2 className="text-xl font-bold tracking-tight text-zinc-100">Nossos Cortes</h2>
         <div className="relative aspect-[4/5] rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 shadow-lg">
           <img 
             src={cuts[currentCutIndex]} 
-            alt={`Corte ${currentCutIndex + 1}`}
+            alt={`Corte Léo Porto Cortês ${currentCutIndex + 1}`}
             className="w-full h-full object-cover transition-opacity duration-500"
           />
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">
@@ -119,8 +119,8 @@ export default function Home() {
 
       {/* Agende seu horário */}
       <section className="max-w-md mx-auto px-4 mt-10 text-left space-y-2">
-        <h2 className="text-xl font-bold text-zinc-100">Agende seu horário</h2>
-        <p className="text-sm text-zinc-400 leading-relaxed">
+        <h2 className="text-xl font-bold tracking-tight text-zinc-100">Agende seu horário</h2>
+        <p className="text-sm text-zinc-400 leading-relaxed font-normal">
           Escolha o melhor horário para você. Preencha seu nome e telefone ao agendar.
         </p>
       </section>
