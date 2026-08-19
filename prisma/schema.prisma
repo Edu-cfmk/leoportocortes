@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  BARBER
+  ADMIN
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  phone         String?
+  image         String?
+  role          Role      @default(CLIENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relacionamentos como Cliente
+  bookingsAsClient Booking[] @relation("ClientBookings")
+
+  // Relacionamentos como Barbeiro
+  bookingsAsBarber Booking[] @relation("BarberBookings")
+  services         Service[] @relation("BarberServices")
+
+  @@map("users")
+}
+
+model Service {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  priceInCents Int
+  durationInMin Int     @default(30)
+  imageUrl    String?
+  barberId    String
+  barber      User      @relation("BarberServices", fields: [barberId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("services")
+}
+
+model Booking {
+  id        String        @id @default(uuid())
+  date      DateTime
+  status    BookingStatus @default(CONFIRMED)
+  
+  clientId  String
+  client    User          @relation("ClientBookings", fields: [clientId], references: [id], onDelete: Cascade)
+  
+  barberId  String
+  barber    User          @relation("BarberBookings", fields: [barberId], references: [id], onDelete: Cascade)
+  
+  serviceId String
+  service   Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@map("bookings")
+}
