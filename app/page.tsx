@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { MapPin, Phone } from "lucide-react"
+import { MapPin, Phone, ShieldCheck, Code2, Mail } from "lucide-react"
 import { FaInstagram, FaWhatsapp } from "react-icons/fa"
 
 export default function Home() {
@@ -31,17 +32,17 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 font-sans tracking-tight antialiased pb-10">
-      {/* Hero Header com Logo Retangular / Horizontal */}
+      {/* Hero Header com Logo */}
       <div className="relative bg-zinc-900 border-b border-zinc-800 p-6 text-center">
         <div className="max-w-md mx-auto space-y-3">
           <div className="mx-auto w-full max-w-[280px] h-28 rounded-lg overflow-hidden bg-white p-2 flex items-center justify-center shadow-md">
             <img 
               src="/logo.jpg" 
-              alt="Léo Porto Cortês Logo" 
+              alt="Léo Porto Cortes Logo" 
               className="w-full h-full object-contain"
             />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">Léo Porto Cortês</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-white">Léo Porto Cortes</h1>
           <p className="text-sm text-zinc-400 flex items-center justify-center gap-1 font-medium">
             <MapPin className="w-4 h-4 text-zinc-400" /> Barbearia & Estilo
           </p>
@@ -72,7 +73,7 @@ export default function Home() {
             <h3 className="font-bold text-lg text-zinc-100 tracking-tight">Redes Sociais</h3>
             <p className="text-sm text-zinc-400 font-normal">Siga nosso perfil para ver cortes e inspiração.</p>
             <div className="flex gap-2">
-              <a href="https://instagram.com" target="_blank" rel="noreferrer" className="flex-1">
+              <a href="https://www.instagram.com/leoportocortes?igsh=MWY5ZHFvbGF2NWQ1bg==" target="_blank" rel="noreferrer" className="flex-1">
                 <Button size="sm" className="w-full bg-pink-600 hover:bg-pink-700 text-white gap-2 text-xs font-semibold">
                   <FaInstagram className="w-4 h-4" /> Instagram
                 </Button>
@@ -103,7 +104,7 @@ export default function Home() {
         <div className="relative aspect-[4/5] rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 shadow-lg">
           <img 
             src={cuts[currentCutIndex]} 
-            alt={`Corte Léo Porto Cortês ${currentCutIndex + 1}`}
+            alt={`Corte Léo Porto Cortes ${currentCutIndex + 1}`}
             className="w-full h-full object-cover transition-opacity duration-500"
           />
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">
@@ -125,12 +126,49 @@ export default function Home() {
         </p>
       </section>
 
-      {/* Rodapé */}
-      <footer className="max-w-4xl mx-auto px-4 mt-12 text-center text-xs text-zinc-500 space-y-2 border-t border-zinc-800 pt-6">
-        <p className="flex items-center justify-center gap-1.5">
-          <Phone className="w-3.5 h-3.5 text-zinc-400" /> (19) 99139-9801
-        </p>
-        <p>© 2026 Léo Porto Cortês. Todos os direitos reservados.</p>
+      {/* Botão para Área ADM */}
+      <div className="max-w-4xl mx-auto px-4 mt-10 flex justify-center">
+        <Link href="/admin">
+          <Button variant="outline" size="sm" className="border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 gap-2 text-xs">
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            Acessar Área ADM
+          </Button>
+        </Link>
+      </div>
+
+      {/* Rodapé Dividido */}
+      <footer className="max-w-4xl mx-auto px-4 mt-8 pt-6 border-t border-zinc-800 text-xs text-zinc-500 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="space-y-1 text-center md:text-left">
+          <p className="flex items-center justify-center md:justify-start gap-1.5">
+            <Phone className="w-3.5 h-3.5 text-zinc-400" /> (19) 99139-9801
+          </p>
+          <p>© 2026 Léo Porto Cortes. Todos os direitos reservados.</p>
+        </div>
+
+        <div className="flex flex-col md:flex-row items-center gap-3 text-zinc-400 font-medium text-center md:text-right">
+          <div className="flex items-center gap-1.5">
+            <Code2 className="w-4 h-4 text-blue-500" />
+            <span>Desenvolvido por Eduardo</span>
+          </div>
+          <div className="flex items-center gap-3 text-zinc-400">
+            <a 
+              href="https://wa.me/5519971288325" 
+              target="_blank" 
+              rel="noreferrer" 
+              className="hover:text-emerald-400 transition-colors flex items-center gap-1"
+              title="WhatsApp do Desenvolvedor: (19) 97128-8325"
+            >
+              <FaWhatsapp className="w-3.5 h-3.5" />
+            </a>
+            <a 
+              href="mailto:adu.carvalho321@gmail.com" 
+              className="hover:text-blue-400 transition-colors flex items-center gap-1"
+              title="E-mail do Desenvolvedor: adu.carvalho321@gmail.com"
+            >
+              <Mail className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        </div>
       </footer>
     </main>
   )
