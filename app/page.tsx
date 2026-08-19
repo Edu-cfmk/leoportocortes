@@ -21,7 +21,6 @@ export default function Home() {
 
   const [currentCutIndex, setCurrentCutIndex] = useState(0)
 
-  // Carrossel trocando automaticamente a cada 2 segundos (2000ms)
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentCutIndex((prevIndex) => (prevIndex + 1) % cuts.length)
@@ -31,11 +30,11 @@ export default function Home() {
   }, [cuts.length])
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 pb-10">
-      {/* 1. Hero Header com Logo do Léo */}
+    <main className="min-h-screen bg-zinc-950 text-zinc-100 font-sans pb-10">
+      {/* Hero Header com Logo Retangular / Horizontal */}
       <div className="relative bg-zinc-900 border-b border-zinc-800 p-6 text-center">
         <div className="max-w-md mx-auto space-y-3">
-          <div className="mx-auto w-24 h-24 rounded-full overflow-hidden border-2 border-amber-500 bg-white flex items-center justify-center p-1 shadow-lg">
+          <div className="mx-auto w-full max-w-[280px] h-28 rounded-lg overflow-hidden bg-white p-2 flex items-center justify-center shadow-md">
             <img 
               src="/logo.jpg" 
               alt="Léo Porto Cortês Logo" 
@@ -43,8 +42,8 @@ export default function Home() {
             />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Léo Porto Cortês</h1>
-          <p className="text-sm text-zinc-400 flex items-center justify-center gap-1">
-            <MapPin className="w-4 h-4 text-amber-500" /> Barbearia & Estilo
+          <p className="text-sm text-zinc-400 flex items-center justify-center gap-1 font-medium">
+            <MapPin className="w-4 h-4 text-zinc-400" /> Barbearia & Estilo
           </p>
           <div className="flex justify-center gap-2 pt-2">
             <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white font-semibold">
@@ -57,9 +56,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 2. Seção de Cartões de Info */}
+      {/* Cartões de Informações */}
       <section className="max-w-4xl mx-auto px-4 mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Cartão Quem Somos */}
         <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
           <CardContent className="p-5 space-y-2">
             <h3 className="font-bold text-lg text-zinc-200">Quem Somos</h3>
@@ -69,29 +67,18 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* Cartão Redes Sociais com Ícones Oficiais */}
         <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
           <CardContent className="p-5 space-y-3">
             <h3 className="font-bold text-lg text-zinc-200">Redes Sociais</h3>
             <p className="text-sm text-zinc-400">Siga nosso perfil para ver cortes e inspiração.</p>
             <div className="flex gap-2">
-              <a 
-                href="https://www.instagram.com/leoportocortes?igsh=MWY5ZHFvbGF2NWQ1bg==" 
-                target="_blank" 
-                rel="noreferrer"
-                className="flex-1"
-              >
-                <Button size="sm" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white gap-2 text-xs font-semibold">
+              <a href="https://instagram.com" target="_blank" rel="noreferrer" className="flex-1">
+                <Button size="sm" className="w-full bg-pink-600 hover:bg-pink-700 text-white gap-2 text-xs font-semibold">
                   <FaInstagram className="w-4 h-4" /> Instagram
                 </Button>
               </a>
-              <a 
-                href="https://wa.me/5519991399801" 
-                target="_blank" 
-                rel="noreferrer"
-                className="flex-1"
-              >
-                <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 text-white gap-2 text-xs font-semibold">
+              <a href="https://wa.me/5519991399801" target="_blank" rel="noreferrer" className="flex-1">
+                <Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2 text-xs font-semibold">
                   <FaWhatsapp className="w-4 h-4" /> WhatsApp
                 </Button>
               </a>
@@ -99,7 +86,6 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* Cartão Preço Médio */}
         <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
           <CardContent className="p-5 space-y-2">
             <h3 className="font-bold text-lg text-zinc-200">Preço Médio</h3>
@@ -111,28 +97,27 @@ export default function Home() {
         </Card>
       </section>
 
-      {/* 3. Carrossel Automático de Cortes */}
+      {/* Carrossel de Cortes */}
       <section className="max-w-md mx-auto px-4 mt-10 text-center space-y-4">
-        <h2 className="text-lg font-semibold text-zinc-200">Nossos Cortes</h2>
-        <div className="relative aspect-[4/5] rounded-xl overflow-hidden border-2 border-zinc-800 bg-zinc-900 shadow-xl">
+        <h2 className="text-xl font-bold text-zinc-100">Nossos Cortes</h2>
+        <div className="relative aspect-[4/5] rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 shadow-lg">
           <img 
             src={cuts[currentCutIndex]} 
             alt={`Corte ${currentCutIndex + 1}`}
-            className="w-full h-full object-cover transition-all duration-500 ease-in-out"
+            className="w-full h-full object-cover transition-opacity duration-500"
           />
-          {/* Indicador de posição das fotos */}
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm">
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">
             {cuts.map((_, idx) => (
               <div 
                 key={idx} 
-                className={`w-2 h-2 rounded-full transition-all ${idx === currentCutIndex ? 'bg-amber-500 w-4' : 'bg-white/50'}`}
+                className={`w-2 h-2 rounded-full transition-all ${idx === currentCutIndex ? 'bg-white w-4' : 'bg-white/40'}`}
               />
             ))}
           </div>
         </div>
       </section>
 
-      {/* 4. Seção Agende seu horário */}
+      {/* Agende seu horário */}
       <section className="max-w-md mx-auto px-4 mt-10 text-left space-y-2">
         <h2 className="text-xl font-bold text-zinc-100">Agende seu horário</h2>
         <p className="text-sm text-zinc-400 leading-relaxed">
@@ -141,11 +126,11 @@ export default function Home() {
       </section>
 
       {/* Rodapé */}
-      <footer className="max-w-4xl mx-auto px-4 mt-12 text-center text-xs text-zinc-600 space-y-2 border-t border-zinc-800 pt-6">
+      <footer className="max-w-4xl mx-auto px-4 mt-12 text-center text-xs text-zinc-500 space-y-2 border-t border-zinc-800 pt-6">
         <p className="flex items-center justify-center gap-1.5">
-          <Phone className="w-3.5 h-3.5 text-amber-600" /> (19) 99139-9801
+          <Phone className="w-3.5 h-3.5 text-zinc-400" /> (19) 99139-9801
         </p>
-        <p>© 2026 Léo Porto Cortes. Todos os direitos reservados.</p>
+        <p>© 2026 Léo Porto Cortês. Todos os direitos reservados.</p>
       </footer>
     </main>
   )
