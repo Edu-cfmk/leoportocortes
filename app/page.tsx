@@ -4,28 +4,15 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { MapPin, Phone, ShieldCheck, Code2, Mail, Calendar as CalendarIcon, Clock, CheckCircle2, User, Scissors } from "lucide-react"
+import { MapPin, Phone, ShieldCheck, Code2, Mail, CheckCircle2, Scissors } from "lucide-react"
 import { FaInstagram, FaWhatsapp } from "react-icons/fa"
 
-interface Service {
-  id: string
-  name: string
-  price: string
-  duration: string
-}
-
-const SERVICES: Service[] = [
-  { id: "corte", name: "Corte Masculino", price: "R$ 45", duration: "30 min" },
-  { id: "barba", name: "Barba Completa", price: "R$ 35", duration: "30 min" },
-  { id: "combo", name: "Combo (Corte + Barba)", price: "R$ 70", duration: "60 min" },
-]
-
-const TIME_SLOTS = [
-  "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-  "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
-  "16:00", "16:30", "17:00", "17:30", "18:00", "18:30"
-]
-
+import { BookingData } from "@/types/booking"
+import { Step1UserData } from "@/components/booking/Step1UserData"
+import { Step2Services } from "@/components/booking/Step2Services"
+import { Step3Barbers } from "@/components/booking/Step3Barbers"
+import { Step4DateTime } from "@/components/booking/Step4DateTime"
+import { Step5Summary } from "@/components/booking/Step5Summary"
 export default function Home() {
   const cuts = [
     "/cuts/corte1.jpg",
@@ -40,14 +27,18 @@ export default function Home() {
   ]
 
   const [currentCutIndex, setCurrentCutIndex] = useState(0)
-
-  // Estados do formulário de agendamento
-  const [selectedService, setSelectedService] = useState<Service | null>(null)
-  const [selectedDate, setSelectedDate] = useState<string>("")
-  const [selectedTime, setSelectedTime] = useState<string>("")
-  const [clientName, setClientName] = useState<string>("")
-  const [clientPhone, setClientPhone] = useState<string>("")
+  const [step, setStep] = useState<number>(1)
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false)
+
+  // Estado unificado do agendamento
+  const [booking, setBooking] = useState<BookingData>({
+    clientName: "",
+    clientPhone: "",
+    service: null,
+    barber: null,
+    date: "",
+    time: "",
+  })
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -57,34 +48,22 @@ export default function Home() {
     return () => clearInterval(timer)
   }, [cuts.length])
 
-  // Gerar datas para os próximos 7 dias
-  const getNextDays = () => {
-    const days = []
-    const today = new Date()
-    
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today)
-      d.setDate(today.getDate() + i)
-      const formatted = d.toISOString().split("T")[0]
-      const label = i === 0 ? "Hoje" : i === 1 ? "Amanhã" : d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })
-      days.push({ dateStr: formatted, label })
-    }
-    return days
-  }
-
-  const handleBooking = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!selectedService || !selectedDate || !selectedTime || !clientName || !clientPhone) {
-      alert("Por favor, preencha todos os campos do agendamento.")
-      return
-    }
-
-    setIsSubmitted(true)
-  }
-
   const scrollToBooking = () => {
     const el = document.getElementById("agendamento")
     if (el) el.scrollIntoView({ behavior: "smooth" })
+  }
+
+  const resetForm = () => {
+    setIsSubmitted(false)
+    setStep(1)
+    setBooking({
+      clientName: "",
+      clientPhone: "",
+      service: null,
+      barber: null,
+      date: "",
+      time: "",
+    })
   }
 
   return (
@@ -177,33 +156,41 @@ export default function Home() {
 
       {/* Sessão de Agendamento */}
       <section id="agendamento" className="max-w-xl mx-auto px-4 mt-12 space-y-6">
-        <div className="text-left space-y-1 border-b border-zinc-800 pb-4">
-          <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Scissors className="w-6 h-6 text-red-500" /> Agende seu Horário
-          </h2>
-          <p className="text-sm text-zinc-400">
-            Escolha o serviço, a data e o horário de sua preferência.
-          </p>
+        <div className="text-left space-y-1 border-b border-zinc-800 pb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+              <Scissors className="w-6 h-6 text-red-500" /> Agendar Horário
+            </h2>
+            <p className="text-xs text-zinc-400 mt-1">Etapa {step} de 5</p>
+          </div>
+          <div className="flex gap-1.5">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className={`h-2 rounded-full transition-all ${
+                  i === step ? "w-6 bg-red-600" : i < step ? "w-2 bg-zinc-600" : "w-2 bg-zinc-800"
+                }`}
+              />
+            ))}
+          </div>
         </div>
 
         {isSubmitted ? (
           <Card className="bg-zinc-900 border-emerald-800/50 text-zinc-100 p-6 text-center space-y-4">
             <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
             <h3 className="text-xl font-bold text-white">Agendamento Realizado com Sucesso!</h3>
-            <p className="text-sm text-zinc-400">
-              Obrigado, <strong className="text-white">{clientName}</strong>! Seu horário para <strong className="text-white">{selectedService?.name}</strong> no dia <strong className="text-white">{new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR")}</strong> às <strong className="text-white">{selectedTime}</strong> foi gravado.
-            </p>
+            <div className="text-sm text-zinc-300 bg-zinc-950/60 p-4 rounded-lg space-y-2 border border-zinc-800 text-left">
+              <p><strong className="text-zinc-100">Cliente:</strong> {booking.clientName}</p>
+              <p><strong className="text-zinc-100">Telefone:</strong> {booking.clientPhone}</p>
+              <p><strong className="text-zinc-100">Serviço:</strong> {booking.service?.name} ({booking.service?.price})</p>
+              <p><strong className="text-zinc-100">Barbeiro:</strong> {booking.barber?.name}</p>
+              <p><strong className="text-zinc-100">Data:</strong> {booking.date ? new Date(booking.date + "T00:00:00").toLocaleDateString("pt-BR") : ""}</p>
+              <p><strong className="text-zinc-100">Horário:</strong> {booking.time}</p>
+            </div>
             <div className="pt-2">
               <Button 
                 variant="outline" 
-                onClick={() => {
-                  setIsSubmitted(false)
-                  setSelectedService(null)
-                  setSelectedDate("")
-                  setSelectedTime("")
-                  setClientName("")
-                  setClientPhone("")
-                }}
+                onClick={resetForm}
                 className="border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
               >
                 Fazer outro agendamento
@@ -211,133 +198,54 @@ export default function Home() {
             </div>
           </Card>
         ) : (
-          <form onSubmit={handleBooking} className="space-y-6">
-            {/* 1. Escolher Serviço */}
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-zinc-200 flex items-center gap-1.5">
-                <span>1. Escolha o Serviço</span>
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {SERVICES.map((s) => {
-                  const isSelected = selectedService?.id === s.id
-                  return (
-                    <div
-                      key={s.id}
-                      onClick={() => setSelectedService(s)}
-                      className={`cursor-pointer p-3.5 rounded-lg border transition-all flex flex-col justify-between ${
-                        isSelected 
-                          ? "bg-red-950/40 border-red-600 text-white shadow-md" 
-                          : "bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-700"
-                      }`}
-                    >
-                      <div>
-                        <p className="font-semibold text-sm">{s.name}</p>
-                        <p className="text-xs text-zinc-400">{s.duration}</p>
-                      </div>
-                      <span className="font-bold text-sm text-red-500 mt-2">{s.price}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* 2. Selecionar Data */}
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-zinc-200 flex items-center gap-1.5">
-                <CalendarIcon className="w-4 h-4 text-zinc-400" />
-                <span>2. Selecione a Data</span>
-              </label>
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-                {getNextDays().map((d) => {
-                  const isSelected = selectedDate === d.dateStr
-                  return (
-                    <button
-                      key={d.dateStr}
-                      type="button"
-                      onClick={() => setSelectedDate(d.dateStr)}
-                      className={`flex-shrink-0 px-4 py-2.5 rounded-lg border text-xs font-medium transition-all ${
-                        isSelected
-                          ? "bg-red-600 border-red-500 text-white font-bold"
-                          : "bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800"
-                      }`}
-                    >
-                      {d.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* 3. Selecionar Horário */}
-            {selectedDate && (
-              <div className="space-y-3">
-                <label className="text-sm font-semibold text-zinc-200 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-zinc-400" />
-                  <span>3. Escolha o Horário</span>
-                </label>
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                  {TIME_SLOTS.map((time) => {
-                    const isSelected = selectedTime === time
-                    return (
-                      <button
-                        key={time}
-                        type="button"
-                        onClick={() => setSelectedTime(time)}
-                        className={`py-2 rounded-md border text-xs font-semibold transition-all ${
-                          isSelected
-                            ? "bg-zinc-100 border-white text-zinc-950 font-bold"
-                            : "bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-700"
-                        }`}
-                      >
-                        {time}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl space-y-6">
+            {step === 1 && (
+              <Step1UserData
+                name={booking.clientName}
+                phone={booking.clientPhone}
+                onChangeName={(val) => setBooking((prev) => ({ ...prev, clientName: val }))}
+                onChangePhone={(val) => setBooking((prev) => ({ ...prev, clientPhone: val }))}
+                onNext={() => setStep(2)}
+              />
             )}
 
-            {/* 4. Preencher Dados do Cliente */}
-            {selectedTime && (
-              <div className="space-y-4 pt-2 border-t border-zinc-800">
-                <label className="text-sm font-semibold text-zinc-200 flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-zinc-400" />
-                  <span>4. Seus Dados</span>
-                </label>
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-xs text-zinc-400 mb-1 block">Nome Completo</span>
-                    <input
-                      type="text"
-                      placeholder="Ex: João Silva"
-                      value={clientName}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClientName(e.target.value)}
-                      required
-                      className="w-full h-10 px-3 py-2 text-sm rounded-md bg-zinc-900 border border-zinc-800 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-red-600"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-xs text-zinc-400 mb-1 block">Telefone / WhatsApp</span>
-                    <input
-                      type="tel"
-                      placeholder="Ex: (19) 99999-9999"
-                      value={clientPhone}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClientPhone(e.target.value)}
-                      required
-                      className="w-full h-10 px-3 py-2 text-sm rounded-md bg-zinc-900 border border-zinc-800 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-red-600"
-                    />
-                  </div>
-                </div>
-
-                <Button 
-                  type="submit" 
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 mt-4 text-sm"
-                >
-                  Finalizar Agendamento
-                </Button>
-              </div>
+            {step === 2 && (
+              <Step2Services
+                selectedService={booking.service}
+                onSelectService={(val) => setBooking((prev) => ({ ...prev, service: val }))}
+                onNext={() => setStep(3)}
+                onBack={() => setStep(1)}
+              />
             )}
-          </form>
+
+            {step === 3 && (
+              <Step3Barbers
+                selectedBarber={booking.barber}
+                onSelectBarber={(val) => setBooking((prev) => ({ ...prev, barber: val }))}
+                onNext={() => setStep(4)}
+                onBack={() => setStep(2)}
+              />
+            )}
+
+            {step === 4 && (
+              <Step4DateTime
+                selectedDate={booking.date}
+                selectedTime={booking.time}
+                onSelectDate={(val) => setBooking((prev) => ({ ...prev, date: val }))}
+                onSelectTime={(val) => setBooking((prev) => ({ ...prev, time: val }))}
+                onNext={() => setStep(5)}
+                onBack={() => setStep(3)}
+              />
+            )}
+
+            {step === 5 && (
+              <Step5Summary
+                booking={booking}
+                onFinish={() => setIsSubmitted(true)}
+                onBack={() => setStep(4)}
+              />
+            )}
+          </div>
         )}
       </section>
 
