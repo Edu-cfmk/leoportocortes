@@ -1,31 +1,33 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import {
   Calendar, Clock, Phone, User, Scissors, CheckCircle, XCircle, RefreshCw, Trash2,
-  LogOut, Settings, Plus, MessageCircle, Clock3, ShieldCheck
+  LogOut, Settings, Plus, MessageCircle, Clock3, Lock, Loader2
 } from "lucide-react"
 
 export default function AdminPage() {
-  const router = RouterCheck()
   const [session, setSession] = useState<{ username: string; role: string } | null>(null)
+  const [loginUsername, setLoginUsername] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
+  const [loginLoading, setLoginLoading] = useState(false)
+
   const [activeTab, setActiveTab] = useState<"dashboard" | "services" | "barbers" | "settings">("dashboard")
   
   const [bookings, setBookings] = useState<any[]>([])
   const [services, setServices] = useState<any[]>([])
   const [barbers, setBarbers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0])
 
-  // Novos cadastros
+  // Form de novos cadastros
   const [newServiceName, setNewServiceName] = useState("")
   const [newServicePrice, setNewServicePrice] = useState("")
   const [newServiceDuration, setNewServiceDuration] = useState("")
   const [newBarberName, setNewBarberName] = useState("")
 
-  // Configurações da Barbearia
+  // Horários de Funcionamento
   const [openTime, setOpenTime] = useState("08:00")
   const [closeTime, setCloseTime] = useState("19:00")
   const [lunchStart, setLunchStart] = useState("12:00")
@@ -33,16 +35,42 @@ export default function AdminPage() {
 
   useEffect(() => {
     const local = localStorage.getItem("admin_session")
-    if (!local) {
-      router.push("/admin/login")
+    if (local) {
+      try {
+        setSession(JSON.parse(local))
+      } catch (e) {
+        localStorage.removeItem("admin_session")
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (session) {
+      loadAllData()
+    }
+  }, [session, selectedDate])
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoginLoading(true)
+
+    const { data, error } = await supabase
+      .from("admin_users")
+      .select("*")
+      .eq("username", loginUsername)
+      .eq("password", loginPassword)
+      .maybeSingle()
+
+    if (error || !data) {
+      alert("Usuário ou senha incorretos.")
+      setLoginLoading(false)
       return
     }
-    setSession(JSON.parse(local))
-    loadAllData()
-  }, [selectedDate])
 
-  function RouterCheck() {
-    try { return useRouter() } catch { return null as any }
+    const userSession = { username: data.username, role: data.role }
+    localStorage.setItem("admin_session", JSON.stringify(userSession))
+    setSession(userSession)
+    setLoginLoading(false)
   }
 
   const loadAllData = async () => {
@@ -71,12 +99,12 @@ export default function AdminPage() {
   }
 
   const fetchSettings = async () => {
-    const { data } = await supabase.from("business_settings").select("*").single()
+    const { data } = await supabase.from("business_settings").select("*").maybeSingle()
     if (data) {
-      setOpenTime(data.open_time)
-      setCloseTime(data.close_time)
-      setLunchStart(data.lunch_start)
-      setLunchEnd(data.lunch_end)
+      setOpenTime(data.open_time || "08:00")
+      setCloseTime(data.close_time || "19:00")
+      setLunchStart(data.lunch_start || "12:00")
+      setLunchEnd(data.lunch_end || "13:00")
     }
   }
 
@@ -87,7 +115,7 @@ export default function AdminPage() {
     } else {
       await supabase.from("business_settings").insert([{ open_time: openTime, close_time: closeTime, lunch_start: lunchStart, lunch_end: lunchEnd }])
     }
-    alert("Horários atualizados com sucesso!")
+    alert("Horários salvos com sucesso!")
   }
 
   const handleAddService = async () => {
@@ -123,13 +151,67 @@ export default function AdminPage() {
 
   const handleLogout = () => {
     localStorage.removeItem("admin_session")
-    router.push("/admin/login")
+    setSession(null)
   }
 
-  // Filtra os 4 próximos horários mais perto
-  const upcomingBookings = bookings.filter(b => b.status === "pending").slice(0, 4)
+  // TELA DE LOGIN (Caso não esteja autenticado)
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-xl p-6 space-y-6">
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-950/60 text-red-500 border border-red-800/50 mb-2">
+              <Scissors className="w-6 h-6" />
+            </div>
+            <h1 className="text-xl font-bold">Acesso Administrativo</h1>
+            <p className="text-xs text-zinc-400">Entre com as credenciais de acesso</p>
+          </div>
 
-  if (!session) return null
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-zinc-300">Usuário</label>
+              <div className="relative">
+                <User className="w-4 h-4 text-zinc-500 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  required
+                  value={loginUsername}
+                  onChange={(e) => setLoginUsername(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
+                  placeholder="Seu usuário"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-zinc-300">Senha</label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-zinc-500 absolute left-3 top-3" />
+                <input
+                  type="password"
+                  required
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loginLoading}
+              className="w-full bg-red-600 hover:bg-red-700 font-bold py-2.5 rounded-lg text-sm text-white flex items-center justify-center transition-colors disabled:opacity-50"
+            >
+              {loginLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Entrar no Painel"}
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  const upcomingBookings = (bookings || []).filter(b => b.status === "pending").slice(0, 4)
 
   return (
     <div className="min-h-screen bg-black text-white p-4 sm:p-8">
@@ -149,14 +231,12 @@ export default function AdminPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 rounded-lg flex items-center gap-1.5 transition-colors"
-            >
-              <LogOut className="w-3.5 h-3.5" /> Sair
-            </button>
-          </div>
+          <button
+            onClick={handleLogout}
+            className="px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 rounded-lg flex items-center gap-1.5 transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" /> Sair
+          </button>
         </div>
 
         {/* NAVEGAÇÃO POR ABAS */}
@@ -198,8 +278,6 @@ export default function AdminPage() {
         {/* ABA: AGENDAMENTOS */}
         {activeTab === "dashboard" && (
           <div className="space-y-6">
-            
-            {/* Filtro de Data */}
             <div className="flex justify-between items-center bg-zinc-950 border border-zinc-800 p-3 rounded-xl">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-red-500" />
@@ -223,7 +301,7 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {upcomingBookings.length === 0 ? (
                   <div className="col-span-full py-4 text-center text-xs text-zinc-500 bg-zinc-950/50 rounded-lg border border-zinc-900">
-                    Nenhum agendamento pendente para os próximos horários.
+                    Nenhum agendamento pendente.
                   </div>
                 ) : (
                   upcomingBookings.map((item) => (
@@ -239,7 +317,7 @@ export default function AdminPage() {
                         <p className="text-xs text-zinc-400 truncate">{item.service_name}</p>
                       </div>
                       <a
-                        href={`https://wa.me/55${item.client_phone.replace(/\D/g, "")}`}
+                        href={`https://wa.me/55${(item.client_phone || "").replace(/\D/g, "")}`}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 text-[11px] text-emerald-400 hover:underline"
@@ -252,13 +330,13 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* LISTA COMPLETA DOS AGENDAMENTOS DA DATA */}
+            {/* LISTA COMPLETA */}
             <div className="space-y-3 pt-4">
               <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                Todos os Agendamentos do Dia ({bookings.length})
+                Todos os Agendamentos do Dia ({(bookings || []).length})
               </h2>
 
-              {bookings.length === 0 ? (
+              {(bookings || []).length === 0 ? (
                 <div className="text-center py-8 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-500 text-sm">
                   Nenhum registro para esta data.
                 </div>
@@ -281,7 +359,7 @@ export default function AdminPage() {
                         </p>
                         <div className="pt-1">
                           <a
-                            href={`https://wa.me/55${item.client_phone.replace(/\D/g, "")}`}
+                            href={`https://wa.me/55${(item.client_phone || "").replace(/\D/g, "")}`}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:underline"
@@ -349,7 +427,7 @@ export default function AdminPage() {
             </div>
 
             <div className="grid gap-2">
-              {services.map((s) => (
+              {(services || []).map((s) => (
                 <div key={s.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex justify-between items-center">
                   <div>
                     <p className="text-sm font-bold text-white">{s.name}</p>
@@ -389,7 +467,7 @@ export default function AdminPage() {
             </div>
 
             <div className="grid gap-2">
-              {barbers.map((b) => (
+              {(barbers || []).map((b) => (
                 <div key={b.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex justify-between items-center">
                   <span className="text-sm font-semibold text-white">{b.name}</span>
                   <button onClick={() => handleDeleteBarber(b.id)} className="text-zinc-500 hover:text-red-500 p-1">
