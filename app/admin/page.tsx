@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
-import { Scissors, LogOut, Home } from "lucide-react"
+import { Scissors, LogOut, Home, Calendar, Wrench, Users, Clock } from "lucide-react"
 
 import { AdminLogin } from "./components/AdminLogin"
 import { BookingsTab } from "./components/BookingsTab"
@@ -16,9 +16,24 @@ export default function AdminPage() {
   const [loginPassword, setLoginPassword] = useState("")
   const [loginLoading, setLoginLoading] = useState(false)
 
+  // Aba Ativa
+  const [activeTab, setActiveTab] = useState<"bookings" | "services" | "settings">("bookings")
+
+  // Agendamentos
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedDate, setSelectedDate] = useState("")
+
+  // Serviços
+  const [services, setServices] = useState<any[]>([])
+  const [newServiceName, setNewServiceName] = useState("")
+  const [newServicePrice, setNewServicePrice] = useState("")
+
+  // Horários / Configurações
+  const [openTime, setOpenTime] = useState("08:00")
+  const [closeTime, setCloseTime] = useState("19:00")
+  const [lunchStart, setLunchStart] = useState("12:00")
+  const [lunchEnd, setLunchEnd] = useState("13:00")
 
   useEffect(() => {
     const local = localStorage.getItem("admin_session")
@@ -28,8 +43,12 @@ export default function AdminPage() {
   }, [])
 
   useEffect(() => {
-    if (session) fetchBookings()
-  }, [session, selectedDate])
+    if (session) {
+      if (activeTab === "bookings") fetchBookings()
+      if (activeTab === "services") fetchServices()
+      if (activeTab === "settings") fetchSettings()
+    }
+  }, [session, selectedDate, activeTab])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -73,6 +92,58 @@ export default function AdminPage() {
     fetchBookings()
   }
 
+  // Serviços
+  const fetchServices = async () => {
+    const { data } = await supabase.from("services").select("*").order("name")
+    setServices(data || [])
+  }
+
+  const handleAddService = async () => {
+    if (!newServiceName || !newServicePrice) return alert("Preencha o nome e preço do serviço.")
+    await supabase.from("services").insert([{ name: newServiceName, price: newServicePrice }])
+    setNewServiceName("")
+    setNewServicePrice("")
+    fetchServices()
+  }
+
+  const handleDeleteService = async (id: string) => {
+    if (confirm("Tem certeza que deseja excluir este serviço?")) {
+      await supabase.from("services").delete().eq("id", id)
+      fetchServices()
+    }
+  }
+
+  // Configurações de Horário
+  const fetchSettings = async () => {
+    const { data } = await supabase.from("settings").select("*").limit(1).maybeSingle()
+    if (data) {
+      setOpenTime(data.open_time || "08:00")
+      setCloseTime(data.close_time || "19:00")
+      setLunchStart(data.lunch_start || "12:00")
+      setLunchEnd(data.lunch_end || "13:00")
+    }
+  }
+
+  const handleSaveSettings = async () => {
+    const { data } = await supabase.from("settings").select("id").limit(1).maybeSingle()
+    if (data?.id) {
+      await supabase.from("settings").update({
+        open_time: openTime,
+        close_time: closeTime,
+        lunch_start: lunchStart,
+        lunch_end: lunchEnd
+      }).eq("id", data.id)
+    } else {
+      await supabase.from("settings").insert([{
+        open_time: openTime,
+        close_time: closeTime,
+        lunch_start: lunchStart,
+        lunch_end: lunchEnd
+      }])
+    }
+    alert("Horários salvos com sucesso!")
+  }
+
   const handleLogout = () => {
     localStorage.removeItem("admin_session")
     setSession(null)
@@ -91,6 +162,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-black text-white p-4 sm:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
+        {/* Cabeçalho */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-800 pb-6">
           <div>
             <h1 className="text-2xl font-bold text-red-500 flex items-center gap-2">
@@ -114,14 +186,71 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <BookingsTab
-          selectedDate={selectedDate}
-          setSelectedDate={setSelectedDate}
-          fetchBookings={fetchBookings}
-          loading={loading}
-          bookings={bookings}
-          handleUpdateStatus={handleUpdateStatus}
-        />
+        {/* Menu de Abas */}
+        <div className="flex items-center gap-2 border-b border-zinc-800 pb-3 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab("bookings")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${
+              activeTab === "bookings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+            }`}
+          >
+            <Calendar className="w-4 h-4" /> Agendamentos
+          </button>
+          <button
+            onClick={() => setActiveTab("services")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${
+              activeTab === "services" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+            }`}
+          >
+            <Wrench className="w-4 h-4" /> Serviços
+          </button>
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${
+              activeTab === "settings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+            }`}
+          >
+            <Clock className="w-4 h-4" /> Horários
+          </button>
+        </div>
+
+        {/* Conteúdo da Aba Ativa */}
+        {activeTab === "bookings" && (
+          <BookingsTab
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            fetchBookings={fetchBookings}
+            loading={loading}
+            bookings={bookings}
+            handleUpdateStatus={handleUpdateStatus}
+          />
+        )}
+
+        {activeTab === "services" && (
+          <ServicesTab
+            services={services}
+            newServiceName={newServiceName}
+            setNewServiceName={setNewServiceName}
+            newServicePrice={newServicePrice}
+            setNewServicePrice={setNewServicePrice}
+            handleAddService={handleAddService}
+            handleDeleteService={handleDeleteService}
+          />
+        )}
+
+        {activeTab === "settings" && (
+          <SettingsTab
+            openTime={openTime}
+            setOpenTime={setOpenTime}
+            closeTime={closeTime}
+            setCloseTime={setCloseTime}
+            lunchStart={lunchStart}
+            setLunchStart={setLunchStart}
+            lunchEnd={lunchEnd}
+            setLunchEnd={setLunchEnd}
+            handleSaveSettings={handleSaveSettings}
+          />
+        )}
       </div>
     </div>
   )
