@@ -7,7 +7,7 @@ import { Users, Trash2, Plus, Edit2, X } from "lucide-react";
 export function BarbersTab() {
   const [barbers, setBarbers] = useState<any[]>([]);
   const [name, setName] = useState("");
-  const [role, setRole] = useState("Funcionário");
+  const [role, setRole] = useState(""); // Agora é texto livre
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -27,7 +27,6 @@ export function BarbersTab() {
     setLoading(true);
 
     if (editingId) {
-      // Atualizar colaborador existente
       const { error } = await supabase
         .from("barbers")
         .update({ name, role })
@@ -41,12 +40,11 @@ export function BarbersTab() {
         fetchBarbers();
       }
     } else {
-      // Inserir novo colaborador
       const { error } = await supabase.from("barbers").insert([
         {
           id: crypto.randomUUID(),
           name,
-          role
+          role: role || "Colaborador" // Padrão caso deixe em branco
         }
       ]);
 
@@ -54,7 +52,7 @@ export function BarbersTab() {
         alert("Erro ao cadastrar colaborador: " + error.message);
       } else {
         setName("");
-        setRole("Funcionário");
+        setRole("");
         fetchBarbers();
         alert("Colaborador cadastrado com sucesso!");
       }
@@ -65,13 +63,13 @@ export function BarbersTab() {
   const handleEdit = (barber: any) => {
     setEditingId(barber.id);
     setName(barber.name);
-    setRole(barber.role || "Funcionário");
+    setRole(barber.role || "");
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setName("");
-    setRole("Funcionário");
+    setRole("");
   };
 
   const handleDeleteBarber = async (id: string) => {
@@ -102,14 +100,13 @@ export function BarbersTab() {
               onChange={(e) => setName(e.target.value)}
               className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
             />
-            <select
+            <input
+              type="text"
+              placeholder="Cargo (ex: Barbeiro Sênior)"
               value={role}
               onChange={(e) => setRole(e.target.value)}
               className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
-            >
-              <option value="Funcionário">Funcionário</option>
-              <option value="ADM">ADM (Administrador)</option>
-            </select>
+            />
           </div>
           <div className="flex gap-2">
             <button
@@ -139,9 +136,7 @@ export function BarbersTab() {
         </h3>
 
         {barbers.length === 0 ? (
-          <p className="text-xs text-zinc-500">
-            Nenhum colaborador cadastrado no momento.
-          </p>
+          <p className="text-xs text-zinc-500">Nenhum colaborador cadastrado.</p>
         ) : (
           <div className="space-y-3">
             {barbers.map((barber) => (
@@ -152,14 +147,8 @@ export function BarbersTab() {
                 <div>
                   <h4 className="font-bold text-white text-sm flex items-center gap-2">
                     {barber.name}
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
-                        barber.role === "ADM"
-                          ? "bg-red-600 text-white"
-                          : "bg-zinc-800 text-zinc-300"
-                      }`}
-                    >
-                      {barber.role || "Funcionário"}
+                    <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-zinc-800 text-zinc-300">
+                      {barber.role || "Sem cargo"}
                     </span>
                   </h4>
                 </div>
@@ -167,14 +156,12 @@ export function BarbersTab() {
                   <button
                     onClick={() => handleEdit(barber)}
                     className="p-2 text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 rounded-lg transition-colors flex items-center gap-1 text-xs px-3"
-                    title="Editar Colaborador"
                   >
                     <Edit2 className="w-3.5 h-3.5" /> Editar
                   </button>
                   <button
                     onClick={() => handleDeleteBarber(barber.id)}
                     className="p-2 text-zinc-500 hover:text-red-500 transition-colors"
-                    title="Excluir Colaborador"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
