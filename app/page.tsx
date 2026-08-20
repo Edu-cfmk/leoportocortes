@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { MapPin, Phone, ShieldCheck, Code2, Mail, Calendar } from "lucide-react"
+import { MapPin, Phone, ShieldCheck, Code2, Mail, Calendar, Download } from "lucide-react"
 import { FaInstagram, FaWhatsapp } from "react-icons/fa"
 
 export default function Home() {
@@ -36,9 +36,9 @@ export default function Home() {
       <div className="relative bg-zinc-900 border-b border-zinc-800 p-6 text-center">
         <div className="max-w-md mx-auto space-y-3">
           <div className="mx-auto w-full max-w-[280px] h-28 rounded-lg overflow-hidden bg-white p-2 flex items-center justify-center shadow-md">
-            <img 
-              src="/logo.jpg" 
-              alt="Léo Porto Cortes Logo" 
+            <img
+              src="/logo.jpg"
+              alt="Léo Porto Cortes Logo"
               className="w-full h-full object-contain"
             />
           </div>
@@ -46,15 +46,18 @@ export default function Home() {
           <p className="text-sm text-zinc-400 flex items-center justify-center gap-1 font-medium">
             <MapPin className="w-4 h-4 text-zinc-400" /> Barbearia & Estilo
           </p>
-          <div className="flex justify-center gap-2 pt-2">
+          <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link href="/agendar">
               <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white font-semibold flex items-center gap-2">
                 <Calendar className="w-4 h-4" /> Agendar Horário
               </Button>
             </Link>
-            <Button size="sm" variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
-              Baixar App (Android)
-            </Button>
+
+            <a href="/app-barbearia.apk" download="LeoPortoCortes.apk">
+              <Button size="sm" variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 flex items-center gap-2">
+                <Download className="w-4 h-4" /> Baixar App (Android)
+              </Button>
+            </a>
           </div>
         </div>
       </div>
@@ -75,7 +78,7 @@ export default function Home() {
             <h3 className="font-bold text-lg text-zinc-100 tracking-tight">Redes Sociais</h3>
             <p className="text-sm text-zinc-400 font-normal">Siga nosso perfil para ver cortes e inspiração.</p>
             <div className="flex gap-2">
-              <a href="https://www.instagram.com/leoportocortes?igsh=MWY5ZHFvbGF2NWQ1bg==" target="_blank" rel="noreferrer" className="flex-1">
+              <a href="https://www.instagram.com/leoportocortes?igsh=MWY5ZHFvbG2NnQ1bg==" target="_blank" rel="noreferrer" className="flex-1">
                 <Button size="sm" className="w-full bg-pink-600 hover:bg-pink-700 text-white gap-2 text-xs font-semibold">
                   <FaInstagram className="w-4 h-4" /> Instagram
                 </Button>
@@ -93,7 +96,7 @@ export default function Home() {
           <CardContent className="p-5 space-y-2">
             <h3 className="font-bold text-lg text-zinc-100 tracking-tight">Preço Médio</h3>
             <div className="text-sm text-zinc-400 space-y-1 font-normal">
-              <p>Corte: R$ 45 — Barba: R$ 35</p>
+              <p>Corte R$ 45 - Barba: R$ 35</p>
               <p>Combo: R$ 70</p>
             </div>
           </CardContent>
@@ -104,15 +107,15 @@ export default function Home() {
       <section className="max-w-md mx-auto px-4 mt-10 text-center space-y-4">
         <h2 className="text-xl font-bold tracking-tight text-zinc-100">Nossos Cortes</h2>
         <div className="relative aspect-[4/5] rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 shadow-lg">
-          <img 
-            src={cuts[currentCutIndex]} 
+          <img
+            src={cuts[currentCutIndex]}
             alt={`Corte Léo Porto Cortes ${currentCutIndex + 1}`}
             className="w-full h-full object-cover transition-opacity duration-500"
           />
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">
             {cuts.map((_, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className={`w-2 h-2 rounded-full transition-all ${idx === currentCutIndex ? 'bg-white w-4' : 'bg-white/40'}`}
               />
             ))}
@@ -145,16 +148,16 @@ export default function Home() {
             <span>Desenvolvido por Eduardo</span>
           </div>
           <div className="flex items-center gap-3 text-zinc-400">
-            <a 
-              href="https://wa.me/5519971288325" 
-              target="_blank" 
-              rel="noreferrer" 
+            <a
+              href="https://wa.me/5519971288325"
+              target="_blank"
+              rel="noreferrer"
               className="hover:text-emerald-400 transition-colors flex items-center gap-1"
             >
               <FaWhatsapp className="w-3.5 h-3.5" />
             </a>
-            <a 
-              href="mailto:adu.carvalho321@gmail.com" 
+            <a
+              href="mailto:adu.carvalho321@gmail.com"
               className="hover:text-blue-400 transition-colors flex items-center gap-1"
             >
               <Mail className="w-3.5 h-3.5" />
