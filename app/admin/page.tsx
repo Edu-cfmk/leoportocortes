@@ -92,7 +92,7 @@ export default function AdminPage() {
     fetchBookings()
   }
 
-  // Serviços
+  // Serviços (Corrigido para enviar priceInCents conforme a tabela do Supabase)
   const fetchServices = async () => {
     const { data } = await supabase.from("services").select("*").order("name")
     setServices(data || [])
@@ -100,7 +100,21 @@ export default function AdminPage() {
 
   const handleAddService = async () => {
     if (!newServiceName || !newServicePrice) return alert("Preencha o nome e preço do serviço.")
-    await supabase.from("services").insert([{ name: newServiceName, price: newServicePrice }])
+    
+    const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0
+
+    const { error } = await supabase.from("services").insert([
+      { 
+        name: newServiceName, 
+        priceInCents: numericPrice 
+      }
+    ])
+
+    if (error) {
+      alert("Erro ao cadastrar: " + error.message)
+      return
+    }
+
     setNewServiceName("")
     setNewServicePrice("")
     fetchServices()
@@ -108,7 +122,11 @@ export default function AdminPage() {
 
   const handleDeleteService = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este serviço?")) {
-      await supabase.from("services").delete().eq("id", id)
+      const { error } = await supabase.from("services").delete().eq("id", id)
+      if (error) {
+        alert("Erro ao excluir: " + error.message)
+        return
+      }
       fetchServices()
     }
   }
