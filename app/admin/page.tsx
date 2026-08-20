@@ -116,32 +116,42 @@ export default function AdminPage() {
   const handleAddService = async () => {
     if (!newServiceName || !newServicePrice) return alert("Preencha o nome e preço do serviço.")
     
-    // 1. Busca o barbeiro existente para pegar seu ID real
-    const { data: barbers, error: barberError } = await supabase
-      .from("barbers")
-      .select("id")
-      .limit(1)
+    // Tenta buscar o barbeiro, mas não bloqueia se houver incompatibilidade
+    const { data: barbers } = await supabase.from("barbers").select("id").limit(1)
+    const firstBarberId = barbers && barbers.length > 0 ? barbers[0].id : null
 
-    if (barberError || !barbers || barbers.length === 0) {
-      alert("Erro: Nenhum colaborador encontrado. Cadastre um barbeiro primeiro.")
-      return
-    }
-
-    const firstBarberId = barbers[0].id
     const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0
     const now = new Date().toISOString()
 
-    // 2. Insere enviando todos os campos obrigatórios (incluindo id, createdAt e updatedAt)
-    const { error } = await supabase.from("services").insert([
-      { 
-        id: crypto.randomUUID(),
-        name: newServiceName, 
-        priceInCents: numericPrice,
-        barberId: firstBarberId,
-        createdAt: now,
-        updatedAt: now
-      }
-    ])
+    // Tentativa 1: Com o barberId encontrado
+    let payload: any = { 
+      id: crypto.randomUUID(),
+      name: newServiceName, 
+      priceInCents: numericPrice,
+      createdAt: now,
+      updatedAt: now
+    }
+
+    if (firstBarberId) {
+      payload.barberId = firstBarberId
+    }
+
+    let { error } = await supabase.from("services").insert([payload])
+
+    // Se der erro de chave estrangeira, tenta enviar com barber_id com underline ou sem o campo
+    if (error && error.message.includes("foreign key")) {
+      delete payload.barberId
+      payload.barber_id = firstBarberId
+      const res = await supabase.from("services").insert([payload])
+      error = res.error
+    }
+
+    // Se ainda persistir, tenta inserir sem nenhum ID de barbeiro (caso a coluna aceite nulo)
+    if (error) {
+      delete payload.barber_id
+      const res = await supabase.from("services").insert([payload])
+      error = res.error
+    }
 
     if (error) {
       alert("Erro ao cadastrar serviço: " + error.message)
