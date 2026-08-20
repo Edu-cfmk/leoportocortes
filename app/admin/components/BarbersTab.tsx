@@ -7,7 +7,6 @@ import { Users, Trash2, Plus } from "lucide-react"
 export function BarbersTab() {
   const [barbers, setBarbers] = useState<any[]>([])
   const [name, setName] = useState("")
-  const [role, setRole] = useState("Barbeiro")
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -27,8 +26,7 @@ export function BarbersTab() {
     const { error } = await supabase.from("barbers").insert([
       {
         id: crypto.randomUUID(),
-        name,
-        role
+        name
       }
     ])
 
@@ -36,7 +34,6 @@ export function BarbersTab() {
       alert("Erro ao cadastrar colaborador: " + error.message)
     } else {
       setName("")
-      setRole("Barbeiro")
       fetchBarbers()
     }
     setLoading(false)
@@ -60,19 +57,12 @@ export function BarbersTab() {
           <Users className="w-5 h-5 text-red-500" /> Gerenciar Colaboradores / Barbeiros
         </h2>
         
-        <form onSubmit={handleAddBarber} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <form onSubmit={handleAddBarber} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <input
             type="text"
             placeholder="Nome do Colaborador (ex: Léo Porto)"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
-          />
-          <input
-            type="text"
-            placeholder="Cargo (ex: Barbeiro Master)"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
             className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
           />
           <button
@@ -96,7 +86,6 @@ export function BarbersTab() {
               <div key={barber.id} className="flex items-center justify-between bg-black border border-zinc-800 p-4 rounded-lg">
                 <div>
                   <h4 className="font-bold text-white text-sm">{barber.name}</h4>
-                  <p className="text-xs text-red-500 font-semibold">{barber.role}</p>
                 </div>
                 <button
                   onClick={() => handleDeleteBarber(barber.id)}
