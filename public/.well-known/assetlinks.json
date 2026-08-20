@@ -1,10 +1,8 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "com.seu.pacote",
-      "sha256_cert_fingerprints": ["8E:E8:91:99:18:70:EC:47:DC:57:F9:CD:24:CA:DE:DC:2E:04:9D:59:9F:F0:D1:9D:8C:3F:28:D9:BB:10:0F:DA"]
-    }
-  }
-]
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.leoportocortes.twa",
+        "sha256_cert_fingerprints": ["CC:56:70:D9:94:2B:A5:B1:EE:0F:51:FA:49:70:26:9B:66:34:CD:16:84:7C:D3:C2:BD:BB:2B:AE:EA:C6:AE:53"]
+      }
+    }]
