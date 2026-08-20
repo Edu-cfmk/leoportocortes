@@ -1,7 +1,7 @@
 {
   "name": "Léo Porto Cortes",
   "short_name": "Léo Porto",
-  "description": "Painel Administrativo - Léo Porto Cortes",
+  "description": "Sistema de agendamentos para a Barbearia Léo Porto Cortes",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
