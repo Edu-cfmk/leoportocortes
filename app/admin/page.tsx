@@ -16,20 +16,15 @@ export default function AdminPage() {
   const [loginPassword, setLoginPassword] = useState("")
   const [loginLoading, setLoginLoading] = useState(false)
 
-  // Aba Ativa
   const [activeTab, setActiveTab] = useState<"bookings" | "services" | "settings">("bookings")
-
-  // Agendamentos
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedDate, setSelectedDate] = useState("")
 
-  // Serviços
   const [services, setServices] = useState<any[]>([])
   const [newServiceName, setNewServiceName] = useState("")
   const [newServicePrice, setNewServicePrice] = useState("")
 
-  // Horários / Configurações
   const [openTime, setOpenTime] = useState("08:00")
   const [closeTime, setCloseTime] = useState("19:00")
   const [lunchStart, setLunchStart] = useState("12:00")
@@ -75,13 +70,11 @@ export default function AdminPage() {
   const fetchBookings = async () => {
     setLoading(true)
     let query = supabase.from("bookings").select("*")
-
     if (selectedDate) {
       query = query.eq("booking_date", selectedDate).order("booking_time", { ascending: true })
     } else {
       query = query.order("booking_date", { ascending: true }).order("booking_time", { ascending: true })
     }
-
     const { data } = await query
     setBookings(data || [])
     setLoading(false)
@@ -92,7 +85,6 @@ export default function AdminPage() {
     fetchBookings()
   }
 
-  // Serviços
   const fetchServices = async () => {
     const { data } = await supabase.from("services").select("*").order("name")
     setServices(data || [])
@@ -103,8 +95,8 @@ export default function AdminPage() {
     
     const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0
     const uniqueId = crypto.randomUUID()
+    const now = new Date().toISOString() // Data atual para createdAt e updatedAt
 
-    // Buscando o primeiro barbeiro disponível para associar ao serviço (caso a tabela exija barberId)
     const { data: barbers } = await supabase.from("barbers").select("id").limit(1).maybeSingle()
     const barberIdToUse = barbers?.id || "default-barber-id"
 
@@ -113,7 +105,9 @@ export default function AdminPage() {
         id: uniqueId,
         name: newServiceName, 
         priceInCents: numericPrice,
-        barberId: barberIdToUse
+        barberId: barberIdToUse,
+        createdAt: now,
+        updatedAt: now
       }
     ])
 
@@ -138,7 +132,6 @@ export default function AdminPage() {
     }
   }
 
-  // Configurações de Horário
   const fetchSettings = async () => {
     const { data } = await supabase.from("settings").select("*").limit(1).maybeSingle()
     if (data) {
@@ -187,7 +180,6 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-black text-white p-4 sm:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
-        {/* Cabeçalho */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-800 pb-6">
           <div>
             <h1 className="text-2xl font-bold text-red-500 flex items-center gap-2">
@@ -200,7 +192,6 @@ export default function AdminPage() {
               </span>
             </p>
           </div>
-
           <div className="flex items-center gap-2">
             <Link href="/" className="px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 rounded-lg flex items-center gap-1.5 transition-colors">
               <Home className="w-3.5 h-3.5 text-red-500" /> Ir para o Início
@@ -211,71 +202,15 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Menu de Abas */}
         <div className="flex items-center gap-2 border-b border-zinc-800 pb-3 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab("bookings")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${
-              activeTab === "bookings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-            }`}
-          >
-            <Calendar className="w-4 h-4" /> Agendamentos
-          </button>
-          <button
-            onClick={() => setActiveTab("services")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${
-              activeTab === "services" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-            }`}
-          >
-            <Wrench className="w-4 h-4" /> Serviços
-          </button>
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${
-              activeTab === "settings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-            }`}
-          >
-            <Clock className="w-4 h-4" /> Horários
-          </button>
+          <button onClick={() => setActiveTab("bookings")} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "bookings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}><Calendar className="w-4 h-4" /> Agendamentos</button>
+          <button onClick={() => setActiveTab("services")} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "services" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}><Wrench className="w-4 h-4" /> Serviços</button>
+          <button onClick={() => setActiveTab("settings")} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "settings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}><Clock className="w-4 h-4" /> Horários</button>
         </div>
 
-        {/* Conteúdo da Aba Ativa */}
-        {activeTab === "bookings" && (
-          <BookingsTab
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            fetchBookings={fetchBookings}
-            loading={loading}
-            bookings={bookings}
-            handleUpdateStatus={handleUpdateStatus}
-          />
-        )}
-
-        {activeTab === "services" && (
-          <ServicesTab
-            services={services}
-            newServiceName={newServiceName}
-            setNewServiceName={setNewServiceName}
-            newServicePrice={newServicePrice}
-            setNewServicePrice={setNewServicePrice}
-            handleAddService={handleAddService}
-            handleDeleteService={handleDeleteService}
-          />
-        )}
-
-        {activeTab === "settings" && (
-          <SettingsTab
-            openTime={openTime}
-            setOpenTime={setOpenTime}
-            closeTime={closeTime}
-            setCloseTime={setCloseTime}
-            lunchStart={lunchStart}
-            setLunchStart={setLunchStart}
-            lunchEnd={lunchEnd}
-            setLunchEnd={setLunchEnd}
-            handleSaveSettings={handleSaveSettings}
-          />
-        )}
+        {activeTab === "bookings" && <BookingsTab selectedDate={selectedDate} setSelectedDate={setSelectedDate} fetchBookings={fetchBookings} loading={loading} bookings={bookings} handleUpdateStatus={handleUpdateStatus} />}
+        {activeTab === "services" && <ServicesTab services={services} newServiceName={newServiceName} setNewServiceName={setNewServiceName} newServicePrice={newServicePrice} setNewServicePrice={setNewServicePrice} handleAddService={handleAddService} handleDeleteService={handleDeleteService} />}
+        {activeTab === "settings" && <SettingsTab openTime={openTime} setOpenTime={setOpenTime} closeTime={closeTime} setCloseTime={setCloseTime} lunchStart={lunchStart} setLunchStart={setLunchStart} lunchEnd={lunchEnd} setLunchEnd={setLunchEnd} handleSaveSettings={handleSaveSettings} />}
       </div>
     </div>
   )
