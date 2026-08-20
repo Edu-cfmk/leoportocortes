@@ -9,6 +9,7 @@ import { AdminLogin } from "./components/AdminLogin"
 import { BookingsTab } from "./components/BookingsTab"
 import { ServicesTab } from "./components/ServicesTab"
 import { SettingsTab } from "./components/SettingsTab"
+import { BarbersTab } from "./components/BarbersTab"
 
 export default function AdminPage() {
   const [session, setSession] = useState<{ username: string; role: string } | null>(null)
@@ -16,7 +17,9 @@ export default function AdminPage() {
   const [loginPassword, setLoginPassword] = useState("")
   const [loginLoading, setLoginLoading] = useState(false)
 
-  const [activeTab, setActiveTab] = useState<"bookings" | "services" | "settings">("bookings")
+  // Abas: bookings | services | barbers | settings
+  const [activeTab, setActiveTab] = useState<"bookings" | "services" | "barbers" | "settings">("bookings")
+
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedDate, setSelectedDate] = useState("")
@@ -93,12 +96,22 @@ export default function AdminPage() {
   const handleAddService = async () => {
     if (!newServiceName || !newServicePrice) return alert("Preencha o nome e preço do serviço.")
     
-    // Busca o primeiro barbeiro válido cadastrado no banco
-    const { data: barberData, error: barberError } = await supabase.from("barbers").select("id").limit(1).maybeSingle()
+    // Busca um barbeiro existente
+    let { data: barberData } = await supabase.from("barbers").select("id").limit(1).maybeSingle()
 
-    if (barberError || !barberData) {
-      alert("Erro: Você precisa ter pelo menos um barbeiro cadastrado no Supabase para associar ao serviço.")
-      return
+    let barberIdToUse = barberData?.id
+
+    // Se não houver nenhum barbeiro cadastrado, cria um automaticamente para evitar erro
+    if (!barberIdToUse) {
+      const defaultBarberId = crypto.randomUUID()
+      const { error: createBarberError } = await supabase.from("barbers").insert([
+        { id: defaultBarberId, name: "Léo Porto", role: "Barbeiro Principal", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+      ])
+      if (createBarberError) {
+        alert("Erro ao criar barbeiro padrão: " + createBarberError.message)
+        return
+      }
+      barberIdToUse = defaultBarberId
     }
 
     const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0
@@ -110,7 +123,7 @@ export default function AdminPage() {
         id: uniqueId,
         name: newServiceName, 
         priceInCents: numericPrice,
-        barberId: barberData.id, // Usa o ID real do barbeiro encontrado
+        barberId: barberIdToUse,
         createdAt: now,
         updatedAt: now
       }
@@ -207,14 +220,17 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* Menu de Abas Atualizado */}
         <div className="flex items-center gap-2 border-b border-zinc-800 pb-3 overflow-x-auto">
           <button onClick={() => setActiveTab("bookings")} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "bookings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}><Calendar className="w-4 h-4" /> Agendamentos</button>
           <button onClick={() => setActiveTab("services")} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "services" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}><Wrench className="w-4 h-4" /> Serviços</button>
+          <button onClick={() => setActiveTab("barbers")} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "barbers" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}><Users className="w-4 h-4" /> Colaboradores</button>
           <button onClick={() => setActiveTab("settings")} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "settings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}><Clock className="w-4 h-4" /> Horários</button>
         </div>
 
         {activeTab === "bookings" && <BookingsTab selectedDate={selectedDate} setSelectedDate={setSelectedDate} fetchBookings={fetchBookings} loading={loading} bookings={bookings} handleUpdateStatus={handleUpdateStatus} />}
         {activeTab === "services" && <ServicesTab services={services} newServiceName={newServiceName} setNewServiceName={setNewServiceName} newServicePrice={newServicePrice} setNewServicePrice={setNewServicePrice} handleDeleteService={handleDeleteService} handleAddService={handleAddService} />}
+        {activeTab === "barbers" && <BarbersTab />}
         {activeTab === "settings" && <SettingsTab openTime={openTime} setOpenTime={setOpenTime} closeTime={closeTime} setCloseTime={setCloseTime} lunchStart={lunchStart} setLunchStart={setLunchStart} lunchEnd={lunchEnd} setLunchEnd={setLunchEnd} handleSaveSettings={handleSaveSettings} />}
       </div>
     </div>
