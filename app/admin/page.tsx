@@ -93,19 +93,24 @@ export default function AdminPage() {
   const handleAddService = async () => {
     if (!newServiceName || !newServicePrice) return alert("Preencha o nome e preço do serviço.")
     
+    // Busca o primeiro barbeiro válido cadastrado no banco
+    const { data: barberData, error: barberError } = await supabase.from("barbers").select("id").limit(1).maybeSingle()
+
+    if (barberError || !barberData) {
+      alert("Erro: Você precisa ter pelo menos um barbeiro cadastrado no Supabase para associar ao serviço.")
+      return
+    }
+
     const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0
     const uniqueId = crypto.randomUUID()
-    const now = new Date().toISOString() // Data atual para createdAt e updatedAt
-
-    const { data: barbers } = await supabase.from("barbers").select("id").limit(1).maybeSingle()
-    const barberIdToUse = barbers?.id || "default-barber-id"
+    const now = new Date().toISOString()
 
     const { error } = await supabase.from("services").insert([
       { 
         id: uniqueId,
         name: newServiceName, 
         priceInCents: numericPrice,
-        barberId: barberIdToUse,
+        barberId: barberData.id, // Usa o ID real do barbeiro encontrado
         createdAt: now,
         updatedAt: now
       }
@@ -209,7 +214,7 @@ export default function AdminPage() {
         </div>
 
         {activeTab === "bookings" && <BookingsTab selectedDate={selectedDate} setSelectedDate={setSelectedDate} fetchBookings={fetchBookings} loading={loading} bookings={bookings} handleUpdateStatus={handleUpdateStatus} />}
-        {activeTab === "services" && <ServicesTab services={services} newServiceName={newServiceName} setNewServiceName={setNewServiceName} newServicePrice={newServicePrice} setNewServicePrice={setNewServicePrice} handleAddService={handleAddService} handleDeleteService={handleDeleteService} />}
+        {activeTab === "services" && <ServicesTab services={services} newServiceName={newServiceName} setNewServiceName={setNewServiceName} newServicePrice={newServicePrice} setNewServicePrice={setNewServicePrice} handleDeleteService={handleDeleteService} handleAddService={handleAddService} />}
         {activeTab === "settings" && <SettingsTab openTime={openTime} setOpenTime={setOpenTime} closeTime={closeTime} setCloseTime={setCloseTime} lunchStart={lunchStart} setLunchStart={setLunchStart} lunchEnd={lunchEnd} setLunchEnd={setLunchEnd} handleSaveSettings={handleSaveSettings} />}
       </div>
     </div>
