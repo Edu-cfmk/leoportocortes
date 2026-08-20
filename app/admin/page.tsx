@@ -95,7 +95,6 @@ export default function AdminPage() {
   const handleAddService = async () => {
     if (!newServiceName || !newServicePrice) return alert("Preencha o nome e preço do serviço.")
     
-    // Busca o barbeiro cadastrado obtendo o ID exato que o banco gerou
     const { data: barberData, error: barberError } = await supabase
       .from("barbers")
       .select("id")
@@ -110,16 +109,17 @@ export default function AdminPage() {
     const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0
     const now = new Date().toISOString()
 
-    // Montamos o objeto do serviço utilizando exatamente o barberId que veio do banco
-    const servicePayload: any = {
-      name: newServiceName, 
-      priceInCents: numericPrice,
-      barberId: barberData.id,
-      createdAt: now,
-      updatedAt: now
-    }
-
-    const { error } = await supabase.from("services").insert([servicePayload])
+    // Enviando explicitamente o ID gerado com crypto.randomUUID()
+    const { error } = await supabase.from("services").insert([
+      { 
+        id: crypto.randomUUID(),
+        name: newServiceName, 
+        priceInCents: numericPrice,
+        barberId: barberData.id,
+        createdAt: now,
+        updatedAt: now
+      }
+    ])
 
     if (error) {
       alert("Erro ao cadastrar: " + error.message)
