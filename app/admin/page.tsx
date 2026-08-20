@@ -113,41 +113,45 @@ export default function AdminPage() {
     setServices(data || []);
   };
 
- const handleAddService = async () => {
-    if (!newServiceName || !newServicePrice) return alert("Preencha o nome e preço do serviço.")
-    
-    const { data: barbers } = await supabase.from("barbers").select("id").limit(1)
-    const firstBarberId = barbers && barbers.length > 0 ? barbers[0].id : null
+  const handleAddService = async () => {
+    if (!newServiceName || !newServicePrice)
+      return alert("Preencha o nome e preço do serviço.");
+
+    const { data: barbers } = await supabase
+      .from("barbers")
+      .select("id")
+      .limit(1);
+    const firstBarberId = barbers && barbers.length > 0 ? barbers[0].id : null;
 
     if (!firstBarberId) {
-      alert("Erro: Cadastre um colaborador na aba 'Colaboradores' primeiro.")
-      return
+      alert("Erro: Cadastre um colaborador na aba 'Colaboradores' primeiro.");
+      return;
     }
 
-    const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0
-    const now = new Date().toISOString()
+    const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0;
+    const now = new Date().toISOString();
 
     const { error } = await supabase.from("services").insert([
-      { 
+      {
         id: crypto.randomUUID(),
-        name: newServiceName, 
+        name: newServiceName,
         price_in_cents: numericPrice,
-        barber_id: firstBarberId, 
+        barber_id: firstBarberId,
         created_at: now,
-        updated_at: now
-      }
-    ])
+        updated_at: now,
+      },
+    ]);
 
     if (error) {
-      alert("Erro ao cadastrar: " + error.message)
-      return
+      alert("Erro ao cadastrar: " + error.message);
+      return;
     }
 
-    setNewServiceName("")
-    setNewServicePrice("")
-    fetchServices()
-    alert("Serviço cadastrado com sucesso!")
-  }
+    setNewServiceName("");
+    setNewServicePrice("");
+    fetchServices();
+    alert("Serviço cadastrado com sucesso!");
+  };
 
   const handleDeleteService = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este serviço?")) {
@@ -292,17 +296,7 @@ export default function AdminPage() {
             handleUpdateStatus={handleUpdateStatus}
           />
         )}
-        {activeTab === "services" && (
-          <ServicesTab
-            services={services}
-            newServiceName={newServiceName}
-            setNewServiceName={setNewServiceName}
-            newServicePrice={newServicePrice}
-            setNewServicePrice={setNewServicePrice}
-            handleDeleteService={handleDeleteService}
-            handleAddService={handleAddService}
-          />
-        )}
+        {activeTab === "services" && <ServicesTab />}
         {activeTab === "barbers" && <BarbersTab />}
         {activeTab === "settings" && (
           <SettingsTab
