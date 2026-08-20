@@ -120,14 +120,13 @@ export default function AdminPage() {
     const firstBarberId = barbers && barbers.length > 0 ? barbers[0].id : null
 
     if (!firstBarberId) {
-      alert("Erro: Cadastre um colaborador primeiro.")
+      alert("Erro: Cadastre um colaborador na aba 'Colaboradores' primeiro.")
       return
     }
 
     const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0
     const now = new Date().toISOString()
 
-    // Usando barber_id com underline conforme criado no SQL
     const { error } = await supabase.from("services").insert([
       { 
         id: crypto.randomUUID(),
