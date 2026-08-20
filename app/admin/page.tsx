@@ -114,57 +114,45 @@ export default function AdminPage() {
   };
 
   const handleAddService = async () => {
-    if (!newServiceName || !newServicePrice)
-      return alert("Preencha o nome e preço do serviço.");
-
-    // 1. Busca qualquer barbeiro existente para pegar seu ID real
+    if (!newServiceName || !newServicePrice) return alert("Preencha o nome e preço do serviço.")
+    
+    // 1. Busca o barbeiro existente para pegar seu ID real
     const { data: barbers, error: barberError } = await supabase
       .from("barbers")
       .select("id")
-      .limit(1);
+      .limit(1)
 
     if (barberError || !barbers || barbers.length === 0) {
-      alert(
-        "Erro: Nenhum colaborador encontrado. Cadastre um barbeiro primeiro.",
-      );
-      return;
+      alert("Erro: Nenhum colaborador encontrado. Cadastre um barbeiro primeiro.")
+      return
     }
 
-    const firstBarberId = barbers[0].id;
-    const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0;
+    const firstBarberId = barbers[0].id
+    const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0
+    const now = new Date().toISOString()
 
-    // 2. Tenta inserir sem forçar um UUID manual,
-    // deixando o banco de dados gerar o ID do serviço se ele for auto-incremental
+    // 2. Insere enviando todos os campos obrigatórios (incluindo id, createdAt e updatedAt)
     const { error } = await supabase.from("services").insert([
-      {
-        name: newServiceName,
+      { 
+        id: crypto.randomUUID(),
+        name: newServiceName, 
         priceInCents: numericPrice,
-        barberId: firstBarberId, // Usa o ID que realmente existe no banco
-      },
-    ]);
+        barberId: firstBarberId,
+        createdAt: now,
+        updatedAt: now
+      }
+    ])
 
     if (error) {
-      // Se der erro de ID, tentamos uma última vez enviando um ID gerado
-      const { error: errorWithId } = await supabase.from("services").insert([
-        {
-          id: crypto.randomUUID(),
-          name: newServiceName,
-          priceInCents: numericPrice,
-          barberId: firstBarberId,
-        },
-      ]);
-
-      if (errorWithId) {
-        alert("Erro final: " + errorWithId.message);
-        return;
-      }
+      alert("Erro ao cadastrar serviço: " + error.message)
+      return
     }
 
-    setNewServiceName("");
-    setNewServicePrice("");
-    fetchServices();
-    alert("Serviço cadastrado com sucesso!");
-  };
+    setNewServiceName("")
+    setNewServicePrice("")
+    fetchServices()
+    alert("Serviço cadastrado com sucesso!")
+  }
 
   const handleDeleteService = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este serviço?")) {
