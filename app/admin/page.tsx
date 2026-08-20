@@ -17,7 +17,6 @@ export default function AdminPage() {
   const [loginPassword, setLoginPassword] = useState("")
   const [loginLoading, setLoginLoading] = useState(false)
 
-  // Abas: bookings | services | barbers | settings
   const [activeTab, setActiveTab] = useState<"bookings" | "services" | "barbers" | "settings">("bookings")
 
   const [bookings, setBookings] = useState<any[]>([])
@@ -96,38 +95,31 @@ export default function AdminPage() {
   const handleAddService = async () => {
     if (!newServiceName || !newServicePrice) return alert("Preencha o nome e preço do serviço.")
     
-    // Busca um barbeiro existente
-    let { data: barberData } = await supabase.from("barbers").select("id").limit(1).maybeSingle()
+    // Busca o barbeiro cadastrado obtendo o ID exato que o banco gerou
+    const { data: barberData, error: barberError } = await supabase
+      .from("barbers")
+      .select("id")
+      .limit(1)
+      .maybeSingle()
 
-    let barberIdToUse = barberData?.id
-
-    // Se não houver nenhum barbeiro cadastrado, cria um automaticamente para evitar erro
-    if (!barberIdToUse) {
-      const defaultBarberId = crypto.randomUUID()
-      const { error: createBarberError } = await supabase.from("barbers").insert([
-        { id: defaultBarberId, name: "Léo Porto", role: "Barbeiro Principal", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-      ])
-      if (createBarberError) {
-        alert("Erro ao criar barbeiro padrão: " + createBarberError.message)
-        return
-      }
-      barberIdToUse = defaultBarberId
+    if (barberError || !barberData) {
+      alert("Erro: Cadastre um colaborador na aba 'Colaboradores' antes de adicionar serviços.")
+      return
     }
 
     const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0
-    const uniqueId = crypto.randomUUID()
     const now = new Date().toISOString()
 
-    const { error } = await supabase.from("services").insert([
-      { 
-        id: uniqueId,
-        name: newServiceName, 
-        priceInCents: numericPrice,
-        barberId: barberIdToUse,
-        createdAt: now,
-        updatedAt: now
-      }
-    ])
+    // Montamos o objeto do serviço utilizando exatamente o barberId que veio do banco
+    const servicePayload: any = {
+      name: newServiceName, 
+      priceInCents: numericPrice,
+      barberId: barberData.id,
+      createdAt: now,
+      updatedAt: now
+    }
+
+    const { error } = await supabase.from("services").insert([servicePayload])
 
     if (error) {
       alert("Erro ao cadastrar: " + error.message)
@@ -137,6 +129,7 @@ export default function AdminPage() {
     setNewServiceName("")
     setNewServicePrice("")
     fetchServices()
+    alert("Serviço cadastrado com sucesso!")
   }
 
   const handleDeleteService = async (id: string) => {
@@ -220,7 +213,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Menu de Abas Atualizado */}
         <div className="flex items-center gap-2 border-b border-zinc-800 pb-3 overflow-x-auto">
           <button onClick={() => setActiveTab("bookings")} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "bookings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}><Calendar className="w-4 h-4" /> Agendamentos</button>
           <button onClick={() => setActiveTab("services")} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "services" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}><Wrench className="w-4 h-4" /> Serviços</button>
