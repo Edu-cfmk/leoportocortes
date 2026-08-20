@@ -131,10 +131,10 @@ export default function AdminPage() {
       { 
         id: crypto.randomUUID(),
         name: newServiceName, 
-        priceInCents: numericPrice,
+        price_in_cents: numericPrice,
         barber_id: firstBarberId, 
-        createdAt: now,
-        updatedAt: now
+        created_at: now,
+        updated_at: now
       }
     ])
 
