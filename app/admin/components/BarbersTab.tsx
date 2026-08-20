@@ -28,9 +28,7 @@ export function BarbersTab() {
       {
         id: crypto.randomUUID(),
         name,
-        role,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        role
       }
     ])
 
