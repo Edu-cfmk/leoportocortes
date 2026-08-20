@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Trash2, Edit2, User } from "lucide-react";
+import { Trash2, Edit2 } from "lucide-react";
 
 export function BarbersTab() {
   const [users, setUsers] = useState<any[]>([]);
@@ -143,16 +143,15 @@ export function BarbersTab() {
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-400">Cargo / Permissão</label>
-              <select
+              <label className="text-xs text-zinc-400">Cargo / Função (Texto livre)</label>
+              <input
+                type="text"
+                required
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm mt-1"
-              >
-                <option value="Barbeiro">Barbeiro</option>
-                <option value="ADM">ADM</option>
-                <option value="OWNER">OWNER (Proprietário)</option>
-              </select>
+                placeholder="Ex: Barbeiro"
+              />
             </div>
           </div>
 
@@ -193,10 +192,8 @@ export function BarbersTab() {
               <div>
                 <h4 className="font-bold text-white text-sm flex items-center gap-2">
                   {user.username}
-                  <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
-                    user.role === 'OWNER' ? 'bg-red-900 text-red-300' :
-                    user.role === 'DEV' ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-800 text-zinc-400'
-                  }`}>
+                  {/* Tag com fundo vermelho aplicada a todos os cargos */}
+                  <span className="text-[10px] bg-red-950 text-red-400 border border-red-800 px-2 py-0.5 rounded font-bold">
                     {user.role}
                   </span>
                 </h4>
