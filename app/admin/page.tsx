@@ -47,7 +47,7 @@ export default function AdminPage() {
   const [lunchStart, setLunchStart] = useState("12:00");
   const [lunchEnd, setLunchEnd] = useState("13:00");
 
-  const hasFullAccess = session?.role === "OWNER" || session?.role === "DEV";
+  const hasFullAccess = session?.role === "ADM" || session?.role === "DEV";
 
   useEffect(() => {
     const local = localStorage.getItem("admin_session");
