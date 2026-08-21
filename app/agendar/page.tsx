@@ -1,21 +1,21 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { ArrowLeft, Scissors, CheckCircle2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, Scissors, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
-import { BookingData } from "@/types/booking"
-import { Step1UserData } from "@/components/booking/Step1UserData"
-import { Step2Services } from "@/components/booking/Step2Services"
-import { Step3Barbers } from "@/components/booking/Step3Barbers"
-import { Step4DateTime } from "@/components/booking/Step4DateTime"
-import { Step5Summary } from "@/components/booking/Step5Summary"
+import { BookingData } from "@/types/booking";
+import { Step1UserData } from "@/components/booking/Step1UserData";
+import { Step2Services } from "@/components/booking/Step2Services";
+import { Step3Barbers } from "@/components/booking/Step3Barbers";
+import { Step4DateTime } from "@/components/booking/Step4DateTime";
+import { Step5Summary } from "@/components/booking/Step5Summary";
 
 export default function AgendarPage() {
-  const [step, setStep] = useState<number>(1)
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(false)
+  const [step, setStep] = useState<number>(1);
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
   const [booking, setBooking] = useState<BookingData>({
     clientName: "",
@@ -24,11 +24,11 @@ export default function AgendarPage() {
     barber: null,
     date: "",
     time: "",
-  })
+  });
 
   const resetForm = () => {
-    setIsSubmitted(false)
-    setStep(1)
+    setIsSubmitted(false);
+    setStep(1);
     setBooking({
       clientName: "",
       clientPhone: "",
@@ -36,8 +36,8 @@ export default function AgendarPage() {
       barber: null,
       date: "",
       time: "",
-    })
-  }
+    });
+  };
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8">
@@ -45,7 +45,11 @@ export default function AgendarPage() {
         {/* Cabeçalho de Navegação */}
         <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
           <Link href="/">
-            <Button variant="outline" size="sm" className="border-zinc-800 text-zinc-300 hover:bg-zinc-800 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-zinc-800 text-zinc-300 hover:bg-zinc-800 gap-2"
+            >
               <ArrowLeft className="w-4 h-4" /> Voltar para o Início
             </Button>
           </Link>
@@ -54,7 +58,11 @@ export default function AgendarPage() {
               <div
                 key={i}
                 className={`h-2 rounded-full transition-all ${
-                  i === step ? "w-6 bg-red-600" : i < step ? "w-2 bg-zinc-600" : "w-2 bg-zinc-800"
+                  i === step
+                    ? "w-6 bg-red-600"
+                    : i < step
+                      ? "w-2 bg-zinc-600"
+                      : "w-2 bg-zinc-800"
                 }`}
               />
             ))}
@@ -72,18 +80,42 @@ export default function AgendarPage() {
         {isSubmitted ? (
           <Card className="bg-zinc-900 border-emerald-800/50 text-zinc-100 p-6 text-center space-y-4">
             <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
-            <h3 className="text-xl font-bold text-white">Agendamento Realizado com Sucesso!</h3>
+            <h3 className="text-xl font-bold text-white">
+              Agendamento Realizado com Sucesso!
+            </h3>
             <div className="text-sm text-zinc-300 bg-zinc-950/60 p-4 rounded-lg space-y-2 border border-zinc-800 text-left">
-              <p><strong className="text-zinc-100">Cliente:</strong> {booking.clientName}</p>
-              <p><strong className="text-zinc-100">Telefone:</strong> {booking.clientPhone}</p>
-              <p><strong className="text-zinc-100">Serviço:</strong> {booking.service?.name} ({booking.service?.price})</p>
-              <p><strong className="text-zinc-100">Barbeiro:</strong> {booking.barber?.name}</p>
-              <p><strong className="text-zinc-100">Data:</strong> {booking.date ? new Date(booking.date + "T00:00:00").toLocaleDateString("pt-BR") : ""}</p>
-              <p><strong className="text-zinc-100">Horário:</strong> {booking.time}</p>
+              <p>
+                <strong className="text-zinc-100">Cliente:</strong>{" "}
+                {booking.clientName}
+              </p>
+              <p>
+                <strong className="text-zinc-100">Telefone:</strong>{" "}
+                {booking.clientPhone}
+              </p>
+              <p>
+                <strong className="text-zinc-100">Serviço:</strong>{" "}
+                {booking.service?.name} ({booking.service?.price})
+              </p>
+              <p>
+                <strong className="text-zinc-100">Barbeiro:</strong>{" "}
+                {booking.barber?.name}
+              </p>
+              <p>
+                <strong className="text-zinc-100">Data:</strong>{" "}
+                {booking.date
+                  ? new Date(booking.date + "T00:00:00").toLocaleDateString(
+                      "pt-BR",
+                    )
+                  : ""}
+              </p>
+              <p>
+                <strong className="text-zinc-100">Horário:</strong>{" "}
+                {booking.time}
+              </p>
             </div>
             <div className="flex gap-2 pt-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={resetForm}
                 className="flex-1 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
               >
@@ -102,8 +134,12 @@ export default function AgendarPage() {
               <Step1UserData
                 name={booking.clientName}
                 phone={booking.clientPhone}
-                onChangeName={(val) => setBooking((prev) => ({ ...prev, clientName: val }))}
-                onChangePhone={(val) => setBooking((prev) => ({ ...prev, clientPhone: val }))}
+                onChangeName={(val) =>
+                  setBooking((prev) => ({ ...prev, clientName: val }))
+                }
+                onChangePhone={(val) =>
+                  setBooking((prev) => ({ ...prev, clientPhone: val }))
+                }
                 onNext={() => setStep(2)}
               />
             )}
@@ -111,7 +147,9 @@ export default function AgendarPage() {
             {step === 2 && (
               <Step2Services
                 selectedService={booking.service}
-                onSelectService={(val) => setBooking((prev) => ({ ...prev, service: val }))}
+                onSelectService={(val) =>
+                  setBooking((prev) => ({ ...prev, service: val }))
+                }
                 onNext={() => setStep(3)}
                 onBack={() => setStep(1)}
               />
@@ -120,7 +158,9 @@ export default function AgendarPage() {
             {step === 3 && (
               <Step3Barbers
                 selectedBarber={booking.barber}
-                onSelectBarber={(val) => setBooking((prev) => ({ ...prev, barber: val }))}
+                onSelectBarber={(val) =>
+                  setBooking((prev) => ({ ...prev, barber: val }))
+                }
                 onNext={() => setStep(4)}
                 onBack={() => setStep(2)}
               />
@@ -130,8 +170,13 @@ export default function AgendarPage() {
               <Step4DateTime
                 selectedDate={booking.date}
                 selectedTime={booking.time}
-                onSelectDate={(val) => setBooking((prev) => ({ ...prev, date: val }))}
-                onSelectTime={(val) => setBooking((prev) => ({ ...prev, time: val }))}
+                selectedBarber={booking.barber}
+                onSelectDate={(date) =>
+                  setBooking((prev) => ({ ...prev, date }))
+                }
+                onSelectTime={(time) =>
+                  setBooking((prev) => ({ ...prev, time }))
+                }
                 onNext={() => setStep(5)}
                 onBack={() => setStep(3)}
               />
@@ -148,5 +193,5 @@ export default function AgendarPage() {
         )}
       </div>
     </main>
-  )
+  );
 }

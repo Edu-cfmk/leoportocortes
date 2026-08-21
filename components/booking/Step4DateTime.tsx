@@ -1,12 +1,15 @@
 "use client"
 
-import { useState } from "react"
-import { Calendar as CalendarIcon, Clock, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Calendar as CalendarIcon, Clock, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Barber } from "@/types/booking"
+import { supabase } from "@/lib/supabase"
 
 interface Step4Props {
   selectedDate: string
   selectedTime: string
+  selectedBarber: Barber | null
   onSelectDate: (date: string) => void
   onSelectTime: (time: string) => void
   onNext: () => void
@@ -29,6 +32,7 @@ const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 export function Step4DateTime({
   selectedDate,
   selectedTime,
+  selectedBarber,
   onSelectDate,
   onSelectTime,
   onNext,
@@ -37,11 +41,46 @@ export function Step4DateTime({
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // Controla o mês e ano sendo visualizados no calendário
   const [currentMonth, setCurrentMonth] = useState(today.getMonth())
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
+  
+  const [bookedTimes, setBookedTimes] = useState<string[]>([])
+  const [loadingTimes, setLoadingTimes] = useState<boolean>(false)
 
-  // Cálculos do calendário
+  // Busca os horários ocupados para a data e barbeiro selecionados
+  useEffect(() => {
+    async function fetchBookedTimes() {
+      if (!selectedDate || !selectedBarber) {
+        setBookedTimes([])
+        return
+      }
+
+      setLoadingTimes(true)
+      try {
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("booking_time, status")
+          .eq("booking_date", selectedDate)
+          .eq("barber_name", selectedBarber.name)
+          .neq("status", "cancelled") // ignora cancelados se houver
+
+        if (error) {
+          console.error("Erro ao buscar horários ocupados:", error)
+        } else if (data) {
+          // Extrai apenas os horários que já estão ocupados
+          const times = data.map((item: any) => item.booking_time)
+          setBookedTimes(times)
+        }
+      } catch (err) {
+        console.error("Erro inesperado ao buscar horários:", err)
+      } finally {
+        setLoadingTimes(false)
+      }
+    }
+
+    fetchBookedTimes()
+  }, [selectedDate, selectedBarber])
+
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
 
@@ -64,11 +103,11 @@ export function Step4DateTime({
   }
 
   const handleSelectDay = (day: number) => {
-    // Formata YYYY-MM-DD mantendo dois dígitos
     const formattedMonth = String(currentMonth + 1).padStart(2, "0")
     const formattedDay = String(day).padStart(2, "0")
     const dateStr = `${currentYear}-${formattedMonth}-${formattedDay}`
     onSelectDate(dateStr)
+    onSelectTime("") // Reseta o horário ao trocar de dia
   }
 
   return (
@@ -78,9 +117,8 @@ export function Step4DateTime({
         <h2 className="text-lg text-white">Passo 4: Data e Horário</h2>
       </div>
 
-      {/* Calendário Numérico Explicito */}
+      {/* Calendário Numérico */}
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
-        {/* Cabeçalho do Mês */}
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold text-white capitalize">
             {MONTH_NAMES[currentMonth]} {currentYear}
@@ -103,7 +141,6 @@ export function Step4DateTime({
           </div>
         </div>
 
-        {/* Dias da Semana */}
         <div className="grid grid-cols-7 text-center text-xs font-semibold text-zinc-500">
           {WEEKDAYS.map((day) => (
             <div key={day} className="py-1">
@@ -112,14 +149,11 @@ export function Step4DateTime({
           ))}
         </div>
 
-        {/* Grade dos Dias (1 ao 31) */}
         <div className="grid grid-cols-7 gap-1 text-center text-sm">
-          {/* Espaços vazios do início do mês */}
           {Array.from({ length: firstDayOfMonth }).map((_, index) => (
             <div key={`empty-${index}`} />
           ))}
 
-          {/* Dias do Mês */}
           {Array.from({ length: daysInMonth }).map((_, index) => {
             const day = index + 1
             const cellDate = new Date(currentYear, currentMonth, day)
@@ -155,29 +189,46 @@ export function Step4DateTime({
       {/* Grade de Horários */}
       {selectedDate ? (
         <div className="space-y-2 pt-2">
-          <label className="text-xs font-medium text-zinc-300 flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-zinc-400" />
-            Horários para {new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR")}:
+          <label className="text-xs font-medium text-zinc-300 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-zinc-400" />
+              Horários para {new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR")}:
+            </span>
+            {selectedBarber && (
+              <span className="text-red-400 font-semibold">Profissional: {selectedBarber.name}</span>
+            )}
           </label>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            {AVAILABLE_TIMES.map((time) => {
-              const isSelected = selectedTime === time
-              return (
-                <button
-                  key={time}
-                  type="button"
-                  onClick={() => onSelectTime(time)}
-                  className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
-                    isSelected
-                      ? "bg-red-600 border-red-500 text-white shadow-md shadow-red-900/30"
-                      : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800"
-                  }`}
-                >
-                  {time}
-                </button>
-              )
-            })}
-          </div>
+
+          {loadingTimes ? (
+            <div className="flex justify-center items-center py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-red-500" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {AVAILABLE_TIMES.map((time) => {
+                const isSelected = selectedTime === time
+                const isBooked = bookedTimes.includes(time)
+
+                return (
+                  <button
+                    key={time}
+                    type="button"
+                    disabled={isBooked}
+                    onClick={() => onSelectTime(time)}
+                    className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
+                      isBooked
+                        ? "bg-zinc-900/50 border-zinc-900 text-zinc-600 cursor-not-allowed line-through"
+                        : isSelected
+                        ? "bg-red-600 border-red-500 text-white shadow-md shadow-red-900/30"
+                        : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800"
+                    }`}
+                  >
+                    {time} {isBooked && "(Ocupado)"}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       ) : (
         <p className="text-xs text-zinc-500 text-center py-3 bg-zinc-950/50 rounded-lg border border-zinc-800/50">

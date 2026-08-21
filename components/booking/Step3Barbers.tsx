@@ -1,13 +1,10 @@
 "use client"
 
-import React from "react"
-import { User, ArrowLeft, ArrowRight } from "lucide-react"
+import React, { useEffect, useState } from "react"
+import { User, ArrowLeft, ArrowRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Service, Barber, BookingData } from "@/types/booking"
-const BARBERS: Barber[] = [
-  { id: "leo", name: "Léo Porto", role: "Barbeiro Principal / Proprietário" },
-  { id: "qualquer", name: "Qualquer Barbeiro Disponível", role: "Primeiro horário livre" },
-]
+import { Barber } from "@/types/booking"
+import { supabase } from "@/lib/supabase"
 
 interface Step3Props {
   selectedBarber: Barber | null
@@ -17,6 +14,42 @@ interface Step3Props {
 }
 
 export function Step3Barbers({ selectedBarber, onSelectBarber, onNext, onBack }: Step3Props) {
+  const [barbers, setBarbers] = useState<Barber[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+
+  useEffect(() => {
+    async function fetchBarbers() {
+      try {
+        const { data, error } = await supabase.from("barbers").select("*")
+        if (error) {
+          console.error("Erro ao buscar barbeiros:", error)
+        } else if (data) {
+          // Mapeia os dados do banco para o formato Barber
+          const fetchedBarbers: Barber[] = data.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            role: item.role || "Barbeiro",
+          }))
+
+          // Adiciona a opção padrão de "Qualquer Barbeiro" ao final da lista
+          const anyBarberOption: Barber = {
+            id: "qualquer",
+            name: "Qualquer Barbeiro Disponível",
+            role: "Primeiro horário livre",
+          }
+
+          setBarbers([...fetchedBarbers, anyBarberOption])
+        }
+      } catch (err) {
+        console.error("Erro inesperado:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchBarbers()
+  }, [])
+
   const handleContinue = () => {
     if (!selectedBarber) {
       alert("Por favor, selecione um barbeiro.")
@@ -30,27 +63,36 @@ export function Step3Barbers({ selectedBarber, onSelectBarber, onNext, onBack }:
       <h3 className="text-lg font-bold text-white flex items-center gap-2">
         <User className="w-5 h-5 text-red-500" /> Passo 3: Escolha o Barbeiro
       </h3>
-      <div className="grid grid-cols-1 gap-3">
-        {BARBERS.map((b) => {
-          const isSelected = selectedBarber?.id === b.id
-          return (
-            <div
-              key={b.id}
-              onClick={() => onSelectBarber(b)}
-              className={`cursor-pointer p-4 rounded-lg border transition-all flex items-center justify-between ${
-                isSelected 
-                  ? "bg-red-950/50 border-red-600 text-white shadow-md" 
-                  : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-700"
-              }`}
-            >
-              <div>
-                <p className="font-semibold text-base">{b.name}</p>
-                <p className="text-xs text-zinc-400">{b.role}</p>
+
+      {loading ? (
+        <div className="flex justify-center items-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-red-500" />
+        </div>
+      ) : barbers.length === 0 ? (
+        <p className="text-sm text-zinc-400 text-center py-4">Nenhum barbeiro cadastrado.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-3">
+          {barbers.map((b) => {
+            const isSelected = selectedBarber?.id === b.id
+            return (
+              <div
+                key={b.id}
+                onClick={() => onSelectBarber(b)}
+                className={`cursor-pointer p-4 rounded-lg border transition-all flex items-center justify-between ${
+                  isSelected 
+                    ? "bg-red-950/50 border-red-600 text-white shadow-md" 
+                    : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-700"
+                }`}
+              >
+                <div>
+                  <p className="font-semibold text-base">{b.name}</p>
+                  <p className="text-xs text-zinc-400">{b.role}</p>
+                </div>
               </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
 
       <div className="flex gap-2 pt-2">
         <Button 
