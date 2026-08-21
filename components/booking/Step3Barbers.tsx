@@ -24,13 +24,21 @@ export function Step3Barbers({ selectedBarber, onSelectBarber, onNext, onBack }:
         if (error) {
           console.error("Erro ao buscar barbeiros:", error)
         } else if (data) {
-          const fetchedBarbers: Barber[] = data.map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            role: item.role || "Barbeiro",
-          }))
+          const fetchedBarbers: Barber[] = data.map((item: any) => {
+            // Se o cargo for ADM/Admin, força para "Barbeiro" na visão do cliente
+            let role = item.role || "Barbeiro"
+            if (role.toLowerCase() === "adm" || role.toLowerCase() === "admin") {
+              role = "Barbeiro"
+            }
 
-          setBarbers(fetchedBarbers) // Sem adicionar "Qualquer Barbeiro"
+            return {
+              id: item.id,
+              name: item.name,
+              role: role,
+            }
+          })
+
+          setBarbers(fetchedBarbers)
         }
       } catch (err) {
         console.error("Erro inesperado:", err)
