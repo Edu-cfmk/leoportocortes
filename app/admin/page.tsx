@@ -17,9 +17,19 @@ import {
 import { AdminLogin } from "./components/AdminLogin";
 import { BookingsTab } from "./components/BookingsTab";
 import { ServicesTab } from "./components/ServicesTab";
-import { SettingsTab } from "./components/SettingsTab";
+import { SettingsTab, DaySchedule } from "./components/SettingsTab";
 import { BarbersTab } from "./components/BarbersTab";
 import { PermissionsTab } from "./components/PermissionsTab";
+
+const defaultSchedules: DaySchedule[] = [
+  { dayOfWeek: "segunda", label: "Segunda-feira", isOpen: true, openTime: "08:00", closeTime: "19:00", lunchStart: "12:00", lunchEnd: "13:00" },
+  { dayOfWeek: "terca", label: "Terça-feira", isOpen: true, openTime: "08:00", closeTime: "19:00", lunchStart: "12:00", lunchEnd: "13:00" },
+  { dayOfWeek: "quarta", label: "Quarta-feira", isOpen: true, openTime: "08:00", closeTime: "19:00", lunchStart: "12:00", lunchEnd: "13:00" },
+  { dayOfWeek: "quinta", label: "Quinta-feira", isOpen: true, openTime: "08:00", closeTime: "19:00", lunchStart: "12:00", lunchEnd: "13:00" },
+  { dayOfWeek: "sexta", label: "Sexta-feira", isOpen: true, openTime: "08:00", closeTime: "19:00", lunchStart: "12:00", lunchEnd: "13:00" },
+  { dayOfWeek: "sabado", label: "Sábado", isOpen: true, openTime: "08:00", closeTime: "18:00", lunchStart: "12:00", lunchEnd: "13:00" },
+  { dayOfWeek: "domingo", label: "Domingo", isOpen: false, openTime: "08:00", closeTime: "14:00", lunchStart: "12:00", lunchEnd: "13:00" },
+];
 
 export default function AdminPage() {
   const [session, setSession] = useState<{
@@ -42,10 +52,10 @@ export default function AdminPage() {
   const [newServiceName, setNewServiceName] = useState("");
   const [newServicePrice, setNewServicePrice] = useState("");
 
-  const [openTime, setOpenTime] = useState("08:00");
-  const [closeTime, setCloseTime] = useState("19:00");
-  const [lunchStart, setLunchStart] = useState("12:00");
-  const [lunchEnd, setLunchEnd] = useState("13:00");
+  // Estados para horários e colaboradores
+  const [barbers, setBarbers] = useState<any[]>([]);
+  const [selectedBarber, setSelectedBarber] = useState<string>("geral");
+  const [schedules, setSchedules] = useState<DaySchedule[]>(defaultSchedules);
 
   const hasFullAccess = session?.role === "ADM" || session?.role === "DEV";
 
@@ -62,11 +72,51 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (session) {
+      fetchBarbers();
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (session) {
       if (activeTab === "bookings") fetchBookings();
       if (activeTab === "services") fetchServices();
-      if (activeTab === "settings") fetchSettings();
+      if (activeTab === "settings") fetchSchedulesForContext();
     }
-  }, [session, selectedDate, activeTab]);
+  }, [session, selectedDate, activeTab, selectedBarber]);
+
+  const fetchBarbers = async () => {
+    const { data } = await supabase.from("barbers").select("*");
+    if (data) setBarbers(data);
+  };
+
+  const fetchSchedulesForContext = async () => {
+    // Busca os horários salvos no banco para o contexto atual (geral ou ID do colaborador)
+    const { data, error } = await supabase
+      .from("barber_schedules")
+      .select("*")
+      .eq("barber_id", selectedBarber === "geral" ? null : selectedBarber); // Ajuste caso sua tabela use outra lógica para o geral
+
+    if (data && data.length > 0) {
+      // Mescla os dados do banco com os dias da semana
+      const updated = defaultSchedules.map((def) => {
+        const found = data.find((d: any) => d.day_of_week === def.dayOfWeek);
+        if (found) {
+          return {
+            ...def,
+            isOpen: found.is_open ?? def.isOpen,
+            openTime: found.open_time?.slice(0, 5) || def.openTime,
+            closeTime: found.close_time?.slice(0, 5) || def.closeTime,
+            lunchStart: found.lunch_start?.slice(0, 5) || def.lunchStart,
+            lunchEnd: found.lunch_end?.slice(0, 5) || def.lunchEnd,
+          };
+        }
+        return def;
+      });
+      setSchedules(updated);
+    } else {
+      setSchedules(defaultSchedules);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,49 +142,39 @@ export default function AdminPage() {
   };
 
   const fetchBookings = async () => {
-  setLoading(true);
-  const today = new Date().toISOString().split("T")[0]; // Data de hoje (2026-08-21)
+    setLoading(true);
+    const today = new Date().toISOString().split("T")[0];
 
-  let query = supabase.from("bookings").select("*");
+    let query = supabase.from("bookings").select("*");
 
-  if (selectedDate) {
-    // Se o usuário selecionou uma data específica ou clicou em "Ver Hoje", filtra exato por ela
-    query = query.eq("booking_date", selectedDate);
-  } else {
-    // Se limpou o filtro (Mostrar Todos), traz apenas pendentes OU de hoje em diante para não poluir
-    query = query.or(`status.eq.pending,booking_date.gte.${today}`);
-  }
+    if (selectedDate) {
+      query = query.eq("booking_date", selectedDate);
+    } else {
+      query = query.or(`status.eq.pending,booking_date.gte.${today}`);
+    }
 
-  const { data, error } = await query
-    .order("booking_date", { ascending: true })
-    .order("booking_time", { ascending: true });
+    const { data, error } = await query
+      .order("booking_date", { ascending: true })
+      .order("booking_time", { ascending: true });
 
-  if (!error) {
-    setBookings(data || []);
-  }
-  setLoading(false);
-};
-
-// Certifique-se de que o useEffect dispara o fetchBookings quando a selectedDate mudar:
-useEffect(() => {
-  fetchBookings();
-}, [selectedDate]);
+    if (!error) {
+      setBookings(data || []);
+    }
+    setLoading(false);
+  };
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
-  console.log("Atualizando ID:", id, "para o status:", newStatus); // Para testar se o clique chega aqui
+    const { error } = await supabase
+      .from("bookings")
+      .update({ status: newStatus })
+      .eq("id", id);
 
-  const { data, error } = await supabase
-    .from("bookings")
-    .update({ status: newStatus })
-    .eq("id", id);
-
-  if (error) {
-    console.error("Erro do Supabase:", error.message);
-    alert("Erro ao atualizar: " + error.message);
-  } else {
-    fetchBookings(); // Atualiza a tela após o sucesso
-  }
-};
+    if (error) {
+      alert("Erro ao atualizar: " + error.message);
+    } else {
+      fetchBookings();
+    }
+  };
 
   const fetchServices = async () => {
     const { data } = await supabase.from("services").select("*").order("name");
@@ -145,10 +185,6 @@ useEffect(() => {
     if (!newServiceName || !newServicePrice)
       return alert("Preencha o nome e preço do serviço.");
 
-    const { data: barbers } = await supabase
-      .from("barbers")
-      .select("id")
-      .limit(1);
     const firstBarberId = barbers && barbers.length > 0 ? barbers[0].id : null;
 
     if (!firstBarberId) {
@@ -192,46 +228,25 @@ useEffect(() => {
     }
   };
 
-  const fetchSettings = async () => {
-    const { data } = await supabase
-      .from("settings")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
-    if (data) {
-      setOpenTime(data.open_time || "08:00");
-      setCloseTime(data.close_time || "19:00");
-      setLunchStart(data.lunch_start || "12:00");
-      setLunchEnd(data.lunch_end || "13:00");
-    }
-  };
-
   const handleSaveSettings = async () => {
-    const { data } = await supabase
-      .from("settings")
-      .select("id")
-      .limit(1)
-      .maybeSingle();
-    if (data?.id) {
-      await supabase
-        .from("settings")
-        .update({
-          open_time: openTime,
-          close_time: closeTime,
-          lunch_start: lunchStart,
-          lunch_end: lunchEnd,
-        })
-        .eq("id", data.id);
-    } else {
-      await supabase.from("settings").insert([
+    // Salva os horários da semana no banco de dados para o colaborador ou geral selecionado
+    const targetBarberId = selectedBarber === "geral" ? null : selectedBarber;
+
+    for (const item of schedules) {
+      await supabase.from("barber_schedules").upsert(
         {
-          open_time: openTime,
-          close_time: closeTime,
-          lunch_start: lunchStart,
-          lunch_end: lunchEnd,
+          barber_id: targetBarberId,
+          day_of_week: item.dayOfWeek,
+          is_open: item.isOpen,
+          open_time: item.openTime,
+          close_time: item.closeTime,
+          lunch_start: item.lunchStart,
+          lunch_end: item.lunchEnd,
         },
-      ]);
+        { onConflict: "barber_id,day_of_week" } // Certifique-se de ter uma constraint unique no Supabase se usar upsert, ou faça delete/insert
+      );
     }
+
     alert("Horários salvos com sucesso!");
   };
 
@@ -313,7 +328,6 @@ useEffect(() => {
             <Clock className="w-4 h-4" /> Horários
           </button>
 
-          {/* Aba de Permissões visível apenas para OWNER e DEV */}
           {hasFullAccess && (
             <button
               onClick={() => setActiveTab("permissions")}
@@ -338,15 +352,11 @@ useEffect(() => {
         {activeTab === "barbers" && <BarbersTab />}
         {activeTab === "settings" && (
           <SettingsTab
-            openTime={openTime}
-            setOpenTime={setOpenTime}
-            closeTime={closeTime}
-            setCloseTime={setCloseTime}
-            lunchStart={lunchStart}
-            setLunchStart={setLunchStart}
-            lunchEnd={lunchEnd}
-            setLunchEnd={setLunchEnd}
+            schedules={schedules}
+            setSchedules={setSchedules}
             handleSaveSettings={handleSaveSettings}
+            barbers={barbers}
+            setSelectedBarber={setSelectedBarber}
           />
         )}
         {activeTab === "permissions" && hasFullAccess && <PermissionsTab />}
