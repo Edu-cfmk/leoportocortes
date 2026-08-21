@@ -93,15 +93,19 @@ export default function AdminPage() {
 
   const fetchBookings = async () => {
   setLoading(true);
-  const today = new Date().toISOString().split("T")[0]; // Pega a data de hoje: 2026-08-21
+  const today = new Date().toISOString().split("T")[0]; // Data de hoje (2026-08-21)
 
-  // Busca agendamentos que:
-  // 1. Estão pendentes (independente da data, caso algo ficou atrasado)
-  // 2. OU foram feitos a partir de hoje
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("*")
-    .or(`status.eq.pending,booking_date.gte.${today}`)
+  let query = supabase.from("bookings").select("*");
+
+  if (selectedDate) {
+    // Se o usuário selecionou uma data específica ou clicou em "Ver Hoje", filtra exato por ela
+    query = query.eq("booking_date", selectedDate);
+  } else {
+    // Se limpou o filtro (Mostrar Todos), traz apenas pendentes OU de hoje em diante para não poluir
+    query = query.or(`status.eq.pending,booking_date.gte.${today}`);
+  }
+
+  const { data, error } = await query
     .order("booking_date", { ascending: true })
     .order("booking_time", { ascending: true });
 
@@ -110,6 +114,11 @@ export default function AdminPage() {
   }
   setLoading(false);
 };
+
+// Certifique-se de que o useEffect dispara o fetchBookings quando a selectedDate mudar:
+useEffect(() => {
+  fetchBookings();
+}, [selectedDate]);
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
   await supabase.from("bookings").update({ status: newStatus }).eq("id", id);
