@@ -14,7 +14,7 @@ interface Step2Props {
 }
 
 export function Step2Services({ selectedService, onSelectService, onNext, onBack }: Step2Props) {
-  const [services, setServices] = useState<Service[]>([])
+  const [services, setServices] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(true)
 
   useEffect(() => {
@@ -24,14 +24,8 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
         if (error) {
           console.error("Erro ao buscar serviços:", error)
         } else if (data) {
-          const formattedServices: Service[] = data.map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            description: item.description || "",
-            price: typeof item.price === "number" ? `R$ ${item.price.toFixed(2).replace(".", ",")}` : item.price,
-            duration: "",
-          }))
-          setServices(formattedServices)
+          console.log("Serviços vindos do Supabase:", data) // Ajuda a inspecionar no console do navegador se necessário
+          setServices(data)
         }
       } catch (err) {
         console.error("Erro inesperado:", err)
@@ -51,6 +45,24 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
     onNext()
   }
 
+  // Função auxiliar para formatar o preço com segurança
+  const formatPrice = (price: any) => {
+    if (price === null || price === undefined) return "R$ 0,00"
+    if (typeof price === "number") {
+      return `R$ ${price.toFixed(2).replace(".", ",")}`
+    }
+    // Se vier como string e já tiver "R$", retorna direto, senão formata
+    const stringPrice = String(price).trim()
+    if (stringPrice.toLowerCase().startsWith("r$")) {
+      return stringPrice
+    }
+    const num = parseFloat(stringPrice.replace(",", "."))
+    if (!isNaN(num)) {
+      return `R$ ${num.toFixed(2).replace(".", ",")}`
+    }
+    return `R$ ${stringPrice}`
+  }
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -65,12 +77,17 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
         <p className="text-sm text-zinc-400 text-center py-4">Nenhum serviço cadastrado.</p>
       ) : (
         <div className="grid grid-cols-1 gap-3">
-          {services.map((s: any) => {
+          {services.map((s) => {
             const isSelected = selectedService?.id === s.id
             return (
               <div
                 key={s.id}
-                onClick={() => onSelectService(s)}
+                onClick={() => onSelectService({
+                  id: s.id,
+                  name: s.name,
+                  price: formatPrice(s.price),
+                  duration: s.duration || ""
+                })}
                 className={`cursor-pointer p-4 rounded-lg border transition-all flex items-center justify-between gap-4 ${
                   isSelected 
                     ? "bg-red-950/50 border-red-600 text-white shadow-md" 
@@ -83,7 +100,9 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
                     <p className="text-xs text-zinc-400">{s.description}</p>
                   )}
                 </div>
-                <span className="font-bold text-base text-red-500 whitespace-nowrap">{s.price}</span>
+                <span className="font-bold text-base text-red-500 whitespace-nowrap">
+                  {formatPrice(s.price)}
+                </span>
               </div>
             )
           })}
