@@ -11,6 +11,7 @@ import {
   Wrench,
   Users,
   Clock,
+  Shield,
 } from "lucide-react";
 
 import { AdminLogin } from "./components/AdminLogin";
@@ -18,6 +19,7 @@ import { BookingsTab } from "./components/BookingsTab";
 import { ServicesTab } from "./components/ServicesTab";
 import { SettingsTab } from "./components/SettingsTab";
 import { BarbersTab } from "./components/BarbersTab";
+import { PermissionsTab } from "./components/PermissionsTab";
 
 export default function AdminPage() {
   const [session, setSession] = useState<{
@@ -29,7 +31,7 @@ export default function AdminPage() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState<
-    "bookings" | "services" | "barbers" | "settings"
+    "bookings" | "services" | "barbers" | "settings" | "permissions"
   >("bookings");
 
   const [bookings, setBookings] = useState<any[]>([]);
@@ -44,6 +46,8 @@ export default function AdminPage() {
   const [closeTime, setCloseTime] = useState("19:00");
   const [lunchStart, setLunchStart] = useState("12:00");
   const [lunchEnd, setLunchEnd] = useState("13:00");
+
+  const hasFullAccess = session?.role === "OWNER" || session?.role === "DEV";
 
   useEffect(() => {
     const local = localStorage.getItem("admin_session");
@@ -285,6 +289,16 @@ export default function AdminPage() {
           >
             <Clock className="w-4 h-4" /> Horários
           </button>
+
+          {/* Aba de Permissões visível apenas para OWNER e DEV */}
+          {hasFullAccess && (
+            <button
+              onClick={() => setActiveTab("permissions")}
+              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "permissions" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+            >
+              <Shield className="w-4 h-4" /> Permissões
+            </button>
+          )}
         </div>
 
         {activeTab === "bookings" && (
@@ -312,6 +326,7 @@ export default function AdminPage() {
             handleSaveSettings={handleSaveSettings}
           />
         )}
+        {activeTab === "permissions" && hasFullAccess && <PermissionsTab />}
       </div>
     </div>
   );
