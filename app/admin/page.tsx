@@ -92,26 +92,29 @@ export default function AdminPage() {
   };
 
   const fetchBookings = async () => {
-    setLoading(true);
-    let query = supabase.from("bookings").select("*");
-    if (selectedDate) {
-      query = query
-        .eq("booking_date", selectedDate)
-        .order("booking_time", { ascending: true });
-    } else {
-      query = query
-        .order("booking_date", { ascending: true })
-        .order("booking_time", { ascending: true });
-    }
-    const { data } = await query;
+  setLoading(true);
+  const today = new Date().toISOString().split("T")[0]; // Pega a data de hoje: 2026-08-21
+
+  // Busca agendamentos que:
+  // 1. Estão pendentes (independente da data, caso algo ficou atrasado)
+  // 2. OU foram feitos a partir de hoje
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("*")
+    .or(`status.eq.pending,booking_date.gte.${today}`)
+    .order("booking_date", { ascending: true })
+    .order("booking_time", { ascending: true });
+
+  if (!error) {
     setBookings(data || []);
-    setLoading(false);
-  };
+  }
+  setLoading(false);
+};
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
-    await supabase.from("bookings").update({ status: newStatus }).eq("id", id);
-    fetchBookings();
-  };
+  await supabase.from("bookings").update({ status: newStatus }).eq("id", id);
+  fetchBookings(); // Atualiza a lista na tela imediatamente
+};
 
   const fetchServices = async () => {
     const { data } = await supabase.from("services").select("*").order("name");
