@@ -27,8 +27,9 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
           const formattedServices: Service[] = data.map((item: any) => ({
             id: item.id,
             name: item.name,
+            description: item.description || "", // Captura a descrição cadastrada no ADM
             price: typeof item.price === "number" ? `R$ ${item.price}` : item.price,
-            duration: "", // Removido o tempo
+            duration: "", 
           }))
           setServices(formattedServices)
         }
@@ -64,7 +65,7 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
         <p className="text-sm text-zinc-400 text-center py-4">Nenhum serviço cadastrado.</p>
       ) : (
         <div className="grid grid-cols-1 gap-3">
-          {services.map((s) => {
+          {services.map((s: any) => {
             const isSelected = selectedService?.id === s.id
             return (
               <div
@@ -78,6 +79,9 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
               >
                 <div>
                   <p className="font-semibold text-base">{s.name}</p>
+                  {s.description && (
+                    <p className="text-xs text-zinc-400 mt-0.5">{s.description}</p>
+                  )}
                 </div>
                 <span className="font-bold text-base text-red-500">{s.price}</span>
               </div>
