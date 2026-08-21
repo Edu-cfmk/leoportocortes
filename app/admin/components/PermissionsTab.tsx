@@ -12,7 +12,7 @@ export function PermissionsTab() {
   // Pega a sessão atual
   const sessionData = typeof window !== "undefined" ? localStorage.getItem("admin_session") : null;
   const session = sessionData ? JSON.parse(sessionData) : null;
-  const hasFullAccess = session?.role === "OWNER" || session?.role === "DEV";
+  const hasFullAccess = session?.role === "ADM" || session?.role === "DEV";
 
   useEffect(() => {
     fetchPermissions();
@@ -63,7 +63,7 @@ export function PermissionsTab() {
   };
 
   const handleDeleteRole = async (id: string, roleName: string) => {
-    if (roleName === "OWNER" || roleName === "DEV") {
+    if (roleName === "ADM" || roleName === "DEV") {
       alert("Não é possível excluir os cargos principais do sistema.");
       return;
     }
@@ -154,7 +154,7 @@ export function PermissionsTab() {
                     />
                   </td>
                   <td className="p-3 text-center">
-                    {p.role_name !== "OWNER" && p.role_name !== "DEV" && (
+                    {p.role_name !== "ADM" && p.role_name !== "DEV" && (
                       <button
                         onClick={() => handleDeleteRole(p.id, p.role_name)}
                         className="text-zinc-500 hover:text-red-500 font-bold"

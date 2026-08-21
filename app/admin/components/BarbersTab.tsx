@@ -17,7 +17,7 @@ export function BarbersTab() {
   const session = sessionData ? JSON.parse(sessionData) : null;
   
   // Apenas DEV e OWNER (Léo) podem gerenciar acessos
-  const hasFullAccess = session?.role === "OWNER" || session?.role === "DEV";
+  const hasFullAccess = session?.role === "ADM" || session?.role === "DEV";
 
   useEffect(() => {
     fetchUsers();
