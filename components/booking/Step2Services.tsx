@@ -27,9 +27,9 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
           const formattedServices: Service[] = data.map((item: any) => ({
             id: item.id,
             name: item.name,
-            description: item.description || "", // Captura a descrição cadastrada no ADM
-            price: typeof item.price === "number" ? `R$ ${item.price}` : item.price,
-            duration: "", 
+            description: item.description || "",
+            price: typeof item.price === "number" ? `R$ ${item.price.toFixed(2).replace(".", ",")}` : item.price,
+            duration: "",
           }))
           setServices(formattedServices)
         }
@@ -71,19 +71,19 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
               <div
                 key={s.id}
                 onClick={() => onSelectService(s)}
-                className={`cursor-pointer p-4 rounded-lg border transition-all flex items-center justify-between ${
+                className={`cursor-pointer p-4 rounded-lg border transition-all flex items-center justify-between gap-4 ${
                   isSelected 
                     ? "bg-red-950/50 border-red-600 text-white shadow-md" 
                     : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-700"
                 }`}
               >
-                <div>
+                <div className="space-y-1">
                   <p className="font-semibold text-base">{s.name}</p>
                   {s.description && (
-                    <p className="text-xs text-zinc-400 mt-0.5">{s.description}</p>
+                    <p className="text-xs text-zinc-400">{s.description}</p>
                   )}
                 </div>
-                <span className="font-bold text-base text-red-500">{s.price}</span>
+                <span className="font-bold text-base text-red-500 whitespace-nowrap">{s.price}</span>
               </div>
             )
           })}
