@@ -121,8 +121,17 @@ useEffect(() => {
 }, [selectedDate]);
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
-  await supabase.from("bookings").update({ status: newStatus }).eq("id", id);
-  fetchBookings(); // Atualiza a lista na tela imediatamente
+  const { error } = await supabase
+    .from("bookings")
+    .update({ status: newStatus })
+    .eq("id", id);
+
+  if (error) {
+    alert("Erro ao atualizar status: " + error.message);
+  } else {
+    // Recarrega os agendamentos imediatamente após atualizar
+    fetchBookings();
+  }
 };
 
   const fetchServices = async () => {
