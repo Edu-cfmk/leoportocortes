@@ -9,7 +9,7 @@ export function ServicesTab() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
-  const [duration, setDuration] = useState("");
+  const [duration, setDuration] = useState("01:00"); // Padrão 1 hora
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -22,6 +22,18 @@ export function ServicesTab() {
     setServices(data || []);
   };
 
+  // Função para converter "01:35" em "1h 35min" (ou "01:00" em "1h")
+  const formatDurationDisplay = (timeStr: string) => {
+    if (!timeStr) return "";
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    if (isNaN(hours) || isNaN(minutes)) return timeStr;
+
+    if (hours === 0 && minutes === 0) return "0 min";
+    if (minutes === 0) return `${hours}h`;
+    if (hours === 0) return `${minutes}min`;
+    return `${hours}h ${minutes}min`;
+  };
+
   const handleSaveService = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !price) return alert("Preencha o nome e o preço do serviço.");
@@ -29,16 +41,17 @@ export function ServicesTab() {
     setLoading(true);
 
     const numericPrice = Number(price.replace(/\D/g, "")) || 0;
+    // Converte para o formato legível antes de salvar no banco
+    const formattedDuration = formatDurationDisplay(duration);
 
     if (editingId) {
-      // Atualizar serviço existente
       const { error } = await supabase
         .from("services")
         .update({
           name,
           description,
           price_in_cents: numericPrice,
-          duration,
+          duration: formattedDuration,
           updated_at: new Date().toISOString()
         })
         .eq("id", editingId);
@@ -51,7 +64,6 @@ export function ServicesTab() {
         fetchServices();
       }
     } else {
-      // Inserir novo serviço
       const { data: barbers } = await supabase.from("barbers").select("id").limit(1);
       const firstBarberId = barbers && barbers.length > 0 ? barbers[0].id : null;
 
@@ -67,7 +79,7 @@ export function ServicesTab() {
           name,
           description,
           price_in_cents: numericPrice,
-          duration,
+          duration: formattedDuration,
           barber_id: firstBarberId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -80,7 +92,7 @@ export function ServicesTab() {
         setName("");
         setDescription("");
         setPrice("");
-        setDuration("");
+        setDuration("01:00");
         fetchServices();
         alert("Serviço cadastrado com sucesso!");
       }
@@ -92,7 +104,7 @@ export function ServicesTab() {
     setEditingId(service.id);
     setName(service.name);
     setDescription(service.description || "");
-    setDuration(service.duration || "");
+    setDuration("01:00"); // Valor padrão caso venha vazio
     setPrice((service.price_in_cents / 100).toFixed(2).replace(".", ","));
   };
 
@@ -101,7 +113,7 @@ export function ServicesTab() {
     setName("");
     setDescription("");
     setPrice("");
-    setDuration("");
+    setDuration("01:00");
   };
 
   const handleDeleteService = async (id: string) => {
@@ -139,20 +151,25 @@ export function ServicesTab() {
               onChange={(e) => setDescription(e.target.value)}
               className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
             />
-            <input
-              type="text"
-              placeholder="Duração (ex: 30 min)"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
-            />
-            <input
-              type="text"
-              placeholder="Preço (ex: 45,00)"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
-            />
+            <div className="flex flex-col">
+              <label className="text-xs text-zinc-400 mb-1">Duração (Horas:Minutos)</label>
+              <input
+                type="time"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-xs text-zinc-400 mb-1">Preço (R$)</label>
+              <input
+                type="text"
+                placeholder="Preço (ex: 45,00)"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
+              />
+            </div>
           </div>
           <div className="flex gap-2">
             <button
