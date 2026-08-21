@@ -24,21 +24,13 @@ export function Step3Barbers({ selectedBarber, onSelectBarber, onNext, onBack }:
         if (error) {
           console.error("Erro ao buscar barbeiros:", error)
         } else if (data) {
-          // Mapeia os dados do banco para o formato Barber
           const fetchedBarbers: Barber[] = data.map((item: any) => ({
             id: item.id,
             name: item.name,
             role: item.role || "Barbeiro",
           }))
 
-          // Adiciona a opção padrão de "Qualquer Barbeiro" ao final da lista
-          const anyBarberOption: Barber = {
-            id: "qualquer",
-            name: "Qualquer Barbeiro Disponível",
-            role: "Primeiro horário livre",
-          }
-
-          setBarbers([...fetchedBarbers, anyBarberOption])
+          setBarbers(fetchedBarbers) // Sem adicionar "Qualquer Barbeiro"
         }
       } catch (err) {
         console.error("Erro inesperado:", err)

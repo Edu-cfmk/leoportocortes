@@ -24,12 +24,11 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
         if (error) {
           console.error("Erro ao buscar serviços:", error)
         } else if (data) {
-          // Mapeia os dados do banco para o formato esperado pelo tipo Service
           const formattedServices: Service[] = data.map((item: any) => ({
             id: item.id,
             name: item.name,
             price: typeof item.price === "number" ? `R$ ${item.price}` : item.price,
-            duration: item.duration || "30 min",
+            duration: "", // Removido o tempo
           }))
           setServices(formattedServices)
         }
@@ -79,7 +78,6 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
               >
                 <div>
                   <p className="font-semibold text-base">{s.name}</p>
-                  <p className="text-xs text-zinc-400">{s.duration}</p>
                 </div>
                 <span className="font-bold text-base text-red-500">{s.price}</span>
               </div>
