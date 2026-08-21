@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { Scissors, ArrowLeft, ArrowRight, Loader2 } from "lucide-react"
+import { Scissors, ArrowLeft, ArrowRight, Loader2, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Service } from "@/types/booking"
 import { supabase } from "@/lib/supabase"
@@ -89,6 +89,11 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
                   <p className="font-semibold text-base">{s.name}</p>
                   {s.description && (
                     <p className="text-xs text-zinc-400">{s.description}</p>
+                  )}
+                  {s.duration && (
+                    <p className="text-xs text-zinc-400 flex items-center gap-1 pt-0.5">
+                      <Clock className="w-3 h-3 text-red-500" /> {s.duration}
+                    </p>
                   )}
                 </div>
                 <span className="font-bold text-base text-red-500 whitespace-nowrap">

@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Scissors, Trash2, Plus, Edit2, X } from "lucide-react";
+import { Scissors, Trash2, Plus, Edit2, X, Clock } from "lucide-react";
 
 export function ServicesTab() {
   const [services, setServices] = useState<any[]>([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [duration, setDuration] = useState("");
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -37,6 +38,7 @@ export function ServicesTab() {
           name,
           description,
           price_in_cents: numericPrice,
+          duration,
           updated_at: new Date().toISOString()
         })
         .eq("id", editingId);
@@ -65,6 +67,7 @@ export function ServicesTab() {
           name,
           description,
           price_in_cents: numericPrice,
+          duration,
           barber_id: firstBarberId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -77,6 +80,7 @@ export function ServicesTab() {
         setName("");
         setDescription("");
         setPrice("");
+        setDuration("");
         fetchServices();
         alert("Serviço cadastrado com sucesso!");
       }
@@ -88,7 +92,7 @@ export function ServicesTab() {
     setEditingId(service.id);
     setName(service.name);
     setDescription(service.description || "");
-    // Formata o preço em centavos para string amigável para edição
+    setDuration(service.duration || "");
     setPrice((service.price_in_cents / 100).toFixed(2).replace(".", ","));
   };
 
@@ -97,6 +101,7 @@ export function ServicesTab() {
     setName("");
     setDescription("");
     setPrice("");
+    setDuration("");
   };
 
   const handleDeleteService = async (id: string) => {
@@ -119,10 +124,10 @@ export function ServicesTab() {
         </h2>
 
         <form onSubmit={handleSaveService} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <input
               type="text"
-              placeholder="Nome do Serviço (ex: Corte Degrade)"
+              placeholder="Nome (ex: Corte Degrade)"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
@@ -132,6 +137,13 @@ export function ServicesTab() {
               placeholder="Descrição (opcional)"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
+            />
+            <input
+              type="text"
+              placeholder="Duração (ex: 30 min)"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
               className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
             />
             <input
@@ -183,9 +195,16 @@ export function ServicesTab() {
                   {service.description && (
                     <p className="text-xs text-zinc-400 mt-0.5">{service.description}</p>
                   )}
-                  <p className="text-red-500 font-semibold text-xs mt-1">
-                    R$ {(service.price_in_cents / 100).toFixed(2).replace(".", ",")}
-                  </p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <p className="text-red-500 font-semibold text-xs">
+                      R$ {(service.price_in_cents / 100).toFixed(2).replace(".", ",")}
+                    </p>
+                    {service.duration && (
+                      <p className="text-xs text-zinc-400 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-red-500" /> {service.duration}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button

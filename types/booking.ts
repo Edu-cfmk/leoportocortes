@@ -2,7 +2,7 @@ export interface Service {
   id: string
   name: string
   price: string
-  duration: string
+  duration: string 
 }
 
 export interface Barber {
