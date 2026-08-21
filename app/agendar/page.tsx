@@ -171,6 +171,7 @@ export default function AgendarPage() {
                 selectedDate={booking.date}
                 selectedTime={booking.time}
                 selectedBarber={booking.barber}
+                selectedService={booking.service}
                 onSelectDate={(date) =>
                   setBooking((prev) => ({ ...prev, date }))
                 }

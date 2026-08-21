@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react"
 import { Calendar as CalendarIcon, Clock, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Barber } from "@/types/booking"
+import { Barber, Service } from "@/types/booking"
 import { supabase } from "@/lib/supabase"
 
 interface Step4Props {
   selectedDate: string
   selectedTime: string
   selectedBarber: Barber | null
+  selectedService: Service | null
   onSelectDate: (date: string) => void
   onSelectTime: (time: string) => void
   onNext: () => void
@@ -33,6 +34,7 @@ export function Step4DateTime({
   selectedDate,
   selectedTime,
   selectedBarber,
+  selectedService,
   onSelectDate,
   onSelectTime,
   onNext,
@@ -47,7 +49,23 @@ export function Step4DateTime({
   const [bookedTimes, setBookedTimes] = useState<string[]>([])
   const [loadingTimes, setLoadingTimes] = useState<boolean>(false)
 
-  // Busca os horários ocupados para a data e barbeiro selecionados
+  const timeToMinutes = (timeStr: string) => {
+    const [hours, minutes] = timeStr.split(":").map(Number)
+    return hours * 60 + minutes
+  }
+
+  const parseDurationToMinutes = (durationStr?: string) => {
+    if (!durationStr) return 45
+    let totalMinutes = 0
+    const hourMatch = durationStr.match(/(\d+)h/)
+    const minMatch = durationStr.match(/(\d+)min/)
+
+    if (hourMatch) totalMinutes += parseInt(hourMatch[1]) * 60
+    if (minMatch) totalMinutes += parseInt(minMatch[1])
+
+    return totalMinutes > 0 ? totalMinutes : 45
+  }
+
   useEffect(() => {
     async function fetchBookedTimes() {
       if (!selectedDate || !selectedBarber) {
@@ -62,14 +80,29 @@ export function Step4DateTime({
           .select("booking_time, status")
           .eq("booking_date", selectedDate)
           .eq("barber_name", selectedBarber.name)
-          .neq("status", "cancelled") // ignora cancelados se houver
+          .neq("status", "cancelled")
 
         if (error) {
           console.error("Erro ao buscar horários ocupados:", error)
         } else if (data) {
-          // Extrai apenas os horários que já estão ocupados
-          const times = data.map((item: any) => item.booking_time)
-          setBookedTimes(times)
+          const occupiedSlots = new Set<string>()
+
+          for (const booking of data) {
+            const startTime = booking.booking_time
+            const startMin = timeToMinutes(startTime)
+            const durationMin = 45 // Padrão de ocupação do slot base
+
+            occupiedSlots.add(startTime)
+
+            AVAILABLE_TIMES.forEach((slot) => {
+              const slotMin = timeToMinutes(slot)
+              if (slotMin > startMin && slotMin < startMin + durationMin) {
+                occupiedSlots.add(slot)
+              }
+            })
+          }
+
+          setBookedTimes(Array.from(occupiedSlots))
         }
       } catch (err) {
         console.error("Erro inesperado ao buscar horários:", err)
@@ -80,6 +113,26 @@ export function Step4DateTime({
 
     fetchBookedTimes()
   }, [selectedDate, selectedBarber])
+
+  const isSlotBlockedOrConflicting = (slotTime: string) => {
+    if (bookedTimes.includes(slotTime)) return true
+
+    const serviceDurationMin = parseDurationToMinutes(selectedService?.duration)
+    if (serviceDurationMin <= 45) return false
+
+    const currentSlotMin = timeToMinutes(slotTime)
+    const endServiceMin = currentSlotMin + serviceDurationMin
+
+    let hasConflict = false
+    AVAILABLE_TIMES.forEach((t) => {
+      const tMin = timeToMinutes(t)
+      if (tMin > currentSlotMin && tMin < endServiceMin && bookedTimes.includes(t)) {
+        hasConflict = true
+      }
+    })
+
+    return hasConflict
+  }
 
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
@@ -107,7 +160,7 @@ export function Step4DateTime({
     const formattedDay = String(day).padStart(2, "0")
     const dateStr = `${currentYear}-${formattedMonth}-${formattedDay}`
     onSelectDate(dateStr)
-    onSelectTime("") // Reseta o horário ao trocar de dia
+    onSelectTime("")
   }
 
   return (
@@ -117,7 +170,6 @@ export function Step4DateTime({
         <h2 className="text-lg text-white">Passo 4: Data e Horário</h2>
       </div>
 
-      {/* Calendário Numérico */}
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold text-white capitalize">
@@ -143,9 +195,7 @@ export function Step4DateTime({
 
         <div className="grid grid-cols-7 text-center text-xs font-semibold text-zinc-500">
           {WEEKDAYS.map((day) => (
-            <div key={day} className="py-1">
-              {day}
-            </div>
+            <div key={day} className="py-1">{day}</div>
           ))}
         </div>
 
@@ -186,7 +236,6 @@ export function Step4DateTime({
         </div>
       </div>
 
-      {/* Grade de Horários */}
       {selectedDate ? (
         <div className="space-y-2 pt-2">
           <label className="text-xs font-medium text-zinc-300 flex items-center justify-between">
@@ -207,23 +256,23 @@ export function Step4DateTime({
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {AVAILABLE_TIMES.map((time) => {
                 const isSelected = selectedTime === time
-                const isBooked = bookedTimes.includes(time)
+                const isUnavailable = isSlotBlockedOrConflicting(time)
 
                 return (
                   <button
                     key={time}
                     type="button"
-                    disabled={isBooked}
+                    disabled={isUnavailable}
                     onClick={() => onSelectTime(time)}
                     className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
-                      isBooked
+                      isUnavailable
                         ? "bg-zinc-900/50 border-zinc-900 text-zinc-600 cursor-not-allowed line-through"
                         : isSelected
                         ? "bg-red-600 border-red-500 text-white shadow-md shadow-red-900/30"
                         : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800"
                     }`}
                   >
-                    {time} {isBooked && "(Ocupado)"}
+                    {time} {isUnavailable && "(Ocupado)"}
                   </button>
                 )
               })}
@@ -236,7 +285,6 @@ export function Step4DateTime({
         </p>
       )}
 
-      {/* Botões de Navegação */}
       <div className="flex gap-3 pt-4 border-t border-zinc-800">
         <Button
           variant="outline"
