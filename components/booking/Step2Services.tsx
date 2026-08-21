@@ -24,7 +24,6 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
         if (error) {
           console.error("Erro ao buscar serviços:", error)
         } else if (data) {
-          console.log("Serviços vindos do Supabase:", data) // Ajuda a inspecionar no console do navegador se necessário
           setServices(data)
         }
       } catch (err) {
@@ -45,22 +44,12 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
     onNext()
   }
 
-  // Função auxiliar para formatar o preço com segurança
-  const formatPrice = (price: any) => {
-    if (price === null || price === undefined) return "R$ 0,00"
-    if (typeof price === "number") {
-      return `R$ ${price.toFixed(2).replace(".", ",")}`
-    }
-    // Se vier como string e já tiver "R$", retorna direto, senão formata
-    const stringPrice = String(price).trim()
-    if (stringPrice.toLowerCase().startsWith("r$")) {
-      return stringPrice
-    }
-    const num = parseFloat(stringPrice.replace(",", "."))
-    if (!isNaN(num)) {
-      return `R$ ${num.toFixed(2).replace(".", ",")}`
-    }
-    return `R$ ${stringPrice}`
+  // Converte o valor em centavos (ex: 5000) para formato em Reais (R$ 50,00)
+  const formatPriceInCents = (cents: any) => {
+    const numCents = Number(cents)
+    if (isNaN(numCents) || numCents === 0) return "R$ 0,00"
+    const reais = numCents / 100
+    return `R$ ${reais.toFixed(2).replace(".", ",")}`
   }
 
   return (
@@ -79,13 +68,15 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
         <div className="grid grid-cols-1 gap-3">
           {services.map((s) => {
             const isSelected = selectedService?.id === s.id
+            const formattedPrice = formatPriceInCents(s.price_in_cents)
+
             return (
               <div
                 key={s.id}
                 onClick={() => onSelectService({
                   id: s.id,
                   name: s.name,
-                  price: formatPrice(s.price),
+                  price: formattedPrice,
                   duration: s.duration || ""
                 })}
                 className={`cursor-pointer p-4 rounded-lg border transition-all flex items-center justify-between gap-4 ${
@@ -101,7 +92,7 @@ export function Step2Services({ selectedService, onSelectService, onNext, onBack
                   )}
                 </div>
                 <span className="font-bold text-base text-red-500 whitespace-nowrap">
-                  {formatPrice(s.price)}
+                  {formattedPrice}
                 </span>
               </div>
             )
