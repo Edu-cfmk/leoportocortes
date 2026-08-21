@@ -80,7 +80,6 @@ export function Step4DateTime({
           .select("booking_time, status")
           .eq("booking_date", selectedDate)
           .eq("barber_name", selectedBarber.name)
-          .neq("status", "cancelled")
 
         if (error) {
           console.error("Erro ao buscar horários ocupados:", error)
@@ -88,9 +87,14 @@ export function Step4DateTime({
           const occupiedSlots = new Set<string>()
 
           for (const booking of data) {
+            const statusLower = (booking.status || "").toLowerCase()
+            if (statusLower.includes("cancel") || statusLower.includes("cancelado")) {
+              continue
+            }
+
             const startTime = booking.booking_time
             const startMin = timeToMinutes(startTime)
-            const durationMin = 45 // Padrão de ocupação do slot base
+            const durationMin = 45
 
             occupiedSlots.add(startTime)
 
