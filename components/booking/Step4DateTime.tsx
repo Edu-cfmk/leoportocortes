@@ -92,17 +92,7 @@ export function Step4DateTime({
         const dayIndex = dateObj.getDay()
         const dayOfWeekName = WEEKDAYS[dayIndex]
 
-       // 2. Busca as configurações de horário: 
-        const { data: barberScheduleData } = await supabase
-          .from("barber_schedules")
-          .select("*")
-          .eq("barber_id", selectedBarber.id)
-          .eq("day_of_week", dayOfWeekName)
-          .maybeSingle()
-
-        let scheduleData = barberScheduleData
-
-        // Se o colaborador não tiver horário específico, ou se quisermos que o geral mande na abertura/fechamento:
+       // 1. Pega sempre a regra da barbearia GERAL (abertura e fechamento oficiais)
         const { data: generalScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
@@ -110,21 +100,29 @@ export function Step4DateTime({
           .eq("day_of_week", dayOfWeekName)
           .maybeSingle()
 
-        // Valores padrão caso não encontre nenhum registro
-        let openMin = 9 * 60
-        let closeMin = 18 * 60
+        // 2. Pega a regra específica do colaborador (para ver se tem almoço próprio ou se está fechado)
+        const { data: barberScheduleData } = await supabase
+          .from("barber_schedules")
+          .select("*")
+          .eq("barber_id", selectedBarber.id)
+          .eq("day_of_week", dayOfWeekName)
+          .maybeSingle()
+
+        // Valores padrão de segurança
+        let openMin = 8 * 60
+        let closeMin = 19 * 60
         let lunchStartMin = 12 * 60
         let lunchEndMin = 13 * 60
         let isClosed = false
 
-        // Se existir regra geral, usa a abertura e fechamento gerais como base
+        // Abertura e Fechamento mandam pelo GERAL
         if (generalScheduleData) {
           isClosed = generalScheduleData.is_open === false ? true : false
           if (generalScheduleData.open_time) openMin = timeToMinutes(generalScheduleData.open_time)
           if (generalScheduleData.close_time) closeMin = timeToMinutes(generalScheduleData.close_time)
         }
 
-        // Se o colaborador tiver uma regra própria (ex: horário de almoço individual), sobrescreve o almoço e se estiver fechado
+        // Se o colaborador tiver configuração própria, respeitamos se ele fechou o dia e puxamos o almoço dele
         if (barberScheduleData) {
           if (barberScheduleData.is_open === false) isClosed = true
           if (barberScheduleData.lunch_start) lunchStartMin = timeToMinutes(barberScheduleData.lunch_start)
