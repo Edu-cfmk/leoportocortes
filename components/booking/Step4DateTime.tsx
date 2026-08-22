@@ -101,9 +101,9 @@ export function Step4DateTime({
           (s: any) => s.day_of_week?.toLowerCase() === dayOfWeekName.toLowerCase()
         )
 
-        // Abertura e Fechamento vêm primariamente do Geral
-        let openMin = generalScheduleData?.open_time ? timeToMinutes(generalScheduleData.open_time) : 7 * 60
-        let closeMin = generalScheduleData?.close_time ? timeToMinutes(generalScheduleData.close_time) : 19 * 60
+        // Abertura e Fechamento padrão caso não encontre
+        let openMin = generalScheduleData?.open_time ? timeToMinutes(generalScheduleData.open_time) : 8 * 60
+        let closeMin = generalScheduleData?.close_time ? timeToMinutes(generalScheduleData.close_time) : 18 * 60
         let isClosed = generalScheduleData?.is_open === false ? true : false
 
         let lunchStartMin = 12 * 60
@@ -118,16 +118,18 @@ export function Step4DateTime({
           if (barberScheduleData.lunch_end) lunchEndMin = timeToMinutes(barberScheduleData.lunch_end)
         }
 
+        console.log("Horários definidos -> Abertura:", minutesToTime(openMin), "Fechamento:", minutesToTime(closeMin))
+
         if (isClosed) {
           setAvailableSlots([])
           setLoadingTimes(false)
           return
         }
 
-        // 3. Gera os horários baseados rigorosamente na abertura e fechamento geral
+        // 3. Gera os horários baseados rigorosamente na abertura e fechamento
         const serviceDuration = parseDurationToMinutes(selectedService?.duration)
         const slots: string[] = []
-        const intervalStep = 60 
+        const intervalStep = 30 // Mudado para 30 min para aproveitar melhor os horários (ex: 14:00, 14:30)
 
         let currentMin = openMin
         while (currentMin + serviceDuration <= closeMin) {
