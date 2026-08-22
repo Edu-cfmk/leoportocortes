@@ -90,14 +90,27 @@ export default function AdminPage() {
   };
 
   const fetchSchedulesForContext = async () => {
-    // Busca os horários salvos no banco para o contexto atual (geral ou ID do colaborador)
-    const { data, error } = await supabase
-      .from("barber_schedules")
-      .select("*")
-      .eq("barber_id", selectedBarber === "geral" ? null : selectedBarber); // Ajuste caso sua tabela use outra lógica para o geral
+    const targetId = selectedBarber === "geral" ? null : selectedBarber;
+    
+    // Converte para null explicitamente se for string vazia ou "geral"
+    const queryId = (!targetId || targetId === "geral") ? null : targetId;
+
+    let query = supabase.from("barber_schedules").select("*");
+    
+    if (queryId === null) {
+      query = query.is("barber_id", null);
+    } else {
+      query = query.eq("barber_id", queryId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Erro ao buscar horários:", error.message);
+      return;
+    }
 
     if (data && data.length > 0) {
-      // Mescla os dados do banco com os dias da semana
       const updated = defaultSchedules.map((def) => {
         const found = data.find((d: any) => d.day_of_week === def.dayOfWeek);
         if (found) {
@@ -114,6 +127,7 @@ export default function AdminPage() {
       });
       setSchedules(updated);
     } else {
+      // Se não houver salvo no banco ainda para este colaborador, carrega os padrões
       setSchedules(defaultSchedules);
     }
   };
@@ -229,25 +243,36 @@ export default function AdminPage() {
   };
 
   const handleSaveSettings = async () => {
-    // Salva os horários da semana no banco de dados para o colaborador ou geral selecionado
     const targetBarberId = selectedBarber === "geral" ? null : selectedBarber;
 
     for (const item of schedules) {
-      await supabase.from("barber_schedules").upsert(
-        {
-          barber_id: targetBarberId,
-          day_of_week: item.dayOfWeek,
-          is_open: item.isOpen,
-          open_time: item.openTime,
-          close_time: item.closeTime,
-          lunch_start: item.lunchStart,
-          lunch_end: item.lunchEnd,
-        },
-        { onConflict: "barber_id,day_of_week" } // Certifique-se de ter uma constraint unique no Supabase se usar upsert, ou faça delete/insert
-      );
+      const payload: any = {
+        barber_id: targetBarberId,
+        day_of_week: item.dayOfWeek,
+        is_open: item.isOpen,
+        open_time: item.openTime,
+        close_time: item.closeTime,
+      };
+
+      // Só envia o almoço se não for geral
+      if (targetBarberId !== null) {
+        payload.lunch_start = item.lunchStart;
+        payload.lunch_end = item.lunchEnd;
+      }
+
+      const { error } = await supabase
+        .from("barber_schedules")
+        .upsert(payload, { onConflict: "barber_id,day_of_week" });
+
+      if (error) {
+        console.error("Erro ao salvar dia:", item.dayOfWeek, error.message);
+        alert("Erro ao salvar: " + error.message);
+        return;
+      }
     }
 
     alert("Horários salvos com sucesso!");
+    fetchSchedulesForContext();
   };
 
   const handleLogout = () => {
