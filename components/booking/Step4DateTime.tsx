@@ -17,12 +17,20 @@ interface Step4Props {
   onBack: () => void
 }
 
+interface WorkingHours {
+  open_time: string
+  close_time: string
+  lunch_start: string
+  lunch_end: string
+  is_closed: boolean
+}
+
 const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ]
 
-const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+const WEEKDAYS = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"]
 
 export function Step4DateTime({
   selectedDate,
@@ -40,10 +48,12 @@ export function Step4DateTime({
   const [currentMonth, setCurrentMonth] = useState(today.getMonth())
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
   
+  const [availableSlots, setAvailableSlots] = useState<string[]>([])
   const [bookedIntervals, setBookedIntervals] = useState<{ start: number; end: number }[]>([])
   const [loadingTimes, setLoadingTimes] = useState<boolean>(false)
 
   const timeToMinutes = (timeStr: string) => {
+    if (!timeStr) return 0
     const [hours, minutes] = timeStr.split(":").map(Number)
     return hours * 60 + minutes
   }
@@ -66,56 +76,86 @@ export function Step4DateTime({
     return totalMinutes > 0 ? totalMinutes : 45
   }
 
-  // Gera os horários possíveis do dia com base na duração do serviço atual
-  // Exemplo: Expediente das 09:00 às 19:00 (pausa de almoço das 12:00 às 13:30)
-  const generateDynamicSlots = () => {
-    const serviceDuration = parseDurationToMinutes(selectedService?.duration)
-    const slots: string[] = []
-
-    // Período da manhã: 09:00 até 12:00
-    let currentMin = 9 * 60 // 09:00
-    const morningEnd = 12 * 60 // 12:00
-
-    while (currentMin + serviceDuration <= morningEnd) {
-      slots.push(minutesToTime(currentMin))
-      currentMin += 15 // Incremento de 15 em 15 minutos para testar novos encaixes, ou pode usar a própria duração se preferir
-    }
-
-    // Período da tarde: 13:30 até 19:00
-    currentMin = 13 * 60 + 30 // 13:30
-    const eveningEnd = 19 * 60 // 19:00
-
-    while (currentMin + serviceDuration <= eveningEnd) {
-      slots.push(minutesToTime(currentMin))
-      currentMin += 15
-    }
-
-    return slots
-  }
-
-  const availableSlots = generateDynamicSlots()
-
+  // Busca os horários de expediente e os agendamentos ocupados do dia selecionado
   useEffect(() => {
-    async function fetchBookedTimes() {
+    async function fetchScheduleAndBookings() {
       if (!selectedDate || !selectedBarber) {
+        setAvailableSlots([])
         setBookedIntervals([])
         return
       }
 
       setLoadingTimes(true)
       try {
-        const { data, error } = await supabase
+        // 1. Descobre o dia da semana (ex: "sexta", "sabado")
+        const dateObj = new Date(selectedDate + "T00:00:00")
+        const dayIndex = dateObj.getDay()
+        const dayOfWeekName = WEEKDAYS[dayIndex]
+
+        // 2. Busca as configurações de horário do profissional para esse dia
+        // Ajuste o nome da tabela caso no seu banco seja diferente (ex: "working_hours" ou "schedules")
+        const { data: scheduleData } = await supabase
+          .from("working_hours")
+          .select("*")
+          .eq("barber_id", selectedBarber.id)
+          .eq("day_of_week", dayOfWeekName)
+          .single()
+
+        // Valores padrão caso não encontre registro específico
+        let openMin = 8 * 60
+        let closeMin = 19 * 60
+        let lunchStartMin = 12 * 60
+        let lunchEndMin = 13 * 60
+        let isClosed = false
+
+        if (scheduleData) {
+          isClosed = scheduleData.is_closed || false
+          if (scheduleData.open_time) openMin = timeToMinutes(scheduleData.open_time)
+          if (scheduleData.close_time) closeMin = timeToMinutes(scheduleData.close_time)
+          if (scheduleData.lunch_start) lunchStartMin = timeToMinutes(scheduleData.lunch_start)
+          if (scheduleData.lunch_end) lunchEndMin = timeToMinutes(scheduleData.lunch_end)
+        }
+
+        if (isClosed) {
+          setAvailableSlots([])
+          setLoadingTimes(false)
+          return
+        }
+
+        // 3. Gera os slots dinamicamente respeitando abertura, fechamento e pausa de almoço
+        const serviceDuration = parseDurationToMinutes(selectedService?.duration)
+        const slots: string[] = []
+        
+        // ALTERAÇÃO: Mudamos o intervalStep de 15 para 60 para gerar de hora em hora
+        const intervalStep = 60 
+
+        let currentMin = openMin
+        while (currentMin + serviceDuration <= closeMin) {
+          const slotEndMin = currentMin + serviceDuration
+
+          // Verifica se o slot cruza com o horário de almoço
+          const crossesLunch = currentMin < lunchEndMin && slotEndMin > lunchStartMin
+
+          if (!crossesLunch) {
+            slots.push(minutesToTime(currentMin))
+          }
+
+          currentMin += intervalStep
+        }
+
+        setAvailableSlots(slots)
+
+        // 4. Busca os agendamentos já existentes para calcular os bloqueios
+        const { data: bookingsData, error: bookingError } = await supabase
           .from("bookings")
           .select("booking_time, status, service_name")
           .eq("booking_date", selectedDate)
           .eq("barber_name", selectedBarber.name)
 
-        if (error) {
-          console.error("Erro ao buscar horários ocupados:", error)
-        } else if (data) {
+        if (!bookingError && bookingsData) {
           const intervals: { start: number; end: number }[] = []
 
-          for (const booking of data) {
+          for (const booking of bookingsData) {
             const statusLower = (booking.status || "").toLowerCase()
             if (statusLower.includes("cancel") || statusLower.includes("cancelado")) {
               continue
@@ -124,7 +164,6 @@ export function Step4DateTime({
             const startTime = booking.booking_time
             const startMin = timeToMinutes(startTime)
             
-            // Descobre a duração real do agendamento já existente no banco
             let durationMin = 45
             if (booking.service_name) {
               const serviceNameLower = booking.service_name.toLowerCase()
@@ -146,23 +185,21 @@ export function Step4DateTime({
           setBookedIntervals(intervals)
         }
       } catch (err) {
-        console.error("Erro inesperado ao buscar horários:", err)
+        console.error("Erro inesperado ao carregar horários:", err)
       } finally {
         setLoadingTimes(false)
       }
     }
 
-    fetchBookedTimes()
-  }, [selectedDate, selectedBarber])
+    fetchScheduleAndBookings()
+  }, [selectedDate, selectedBarber, selectedService])
 
   const isSlotUnavailable = (slotTime: string) => {
     const slotStartMin = timeToMinutes(slotTime)
     const serviceDuration = parseDurationToMinutes(selectedService?.duration)
     const slotEndMin = slotStartMin + serviceDuration
 
-    // Verifica se cruza com algum intervalo já ocupado no banco
     for (const booked of bookedIntervals) {
-      // Há conflito se o novo agendamento começar antes do outro terminar E terminar depois do outro começar
       if (slotStartMin < booked.end && slotEndMin > booked.start) {
         return true
       }
@@ -232,7 +269,7 @@ export function Step4DateTime({
 
         <div className="grid grid-cols-7 text-center text-xs font-semibold text-zinc-500">
           {WEEKDAYS.map((day) => (
-            <div key={day} className="py-1">{day}</div>
+            <div key={day} className="py-1 uppercase">{day.slice(0, 3)}</div>
           ))}
         </div>
 
@@ -289,6 +326,10 @@ export function Step4DateTime({
             <div className="flex justify-center items-center py-6">
               <Loader2 className="w-5 h-5 animate-spin text-red-500" />
             </div>
+          ) : availableSlots.length === 0 ? (
+            <p className="text-xs text-zinc-500 text-center py-6 bg-zinc-950/50 rounded-lg border border-zinc-800/50">
+              Não há horários disponíveis ou o profissional está fechado neste dia.
+            </p>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {availableSlots.map((time) => {
