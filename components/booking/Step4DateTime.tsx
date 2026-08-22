@@ -92,16 +92,29 @@ export function Step4DateTime({
         const dayIndex = dateObj.getDay()
         const dayOfWeekName = WEEKDAYS[dayIndex]
 
-        // 2. Busca as configurações de horário do profissional para esse dia
-        // Ajuste o nome da tabela caso no seu banco seja diferente (ex: "working_hours" ou "schedules")
-        const { data: scheduleData } = await supabase
-          .from("working_hours")
+        // 2. Busca as configurações de horário: primeiro tenta do colaborador, se não achar, busca do geral (barber_id IS NULL)
+        const { data: barberScheduleData } = await supabase
+          .from("barber_schedules")
           .select("*")
           .eq("barber_id", selectedBarber.id)
           .eq("day_of_week", dayOfWeekName)
-          .single()
+          .maybeSingle()
 
-        // Valores padrão caso não encontre registro específico
+        let scheduleData = barberScheduleData
+
+        if (!scheduleData) {
+          // Se o colaborador não tiver escala própria para o dia, pega a geral da barbearia
+          const { data: generalScheduleData } = await supabase
+            .from("barber_schedules")
+            .select("*")
+            .is("barber_id", null)
+            .eq("day_of_week", dayOfWeekName)
+            .maybeSingle()
+          
+          scheduleData = generalScheduleData
+        }
+
+        // Valores padrão caso não encontre nenhum registro
         let openMin = 8 * 60
         let closeMin = 19 * 60
         let lunchStartMin = 12 * 60
@@ -109,7 +122,7 @@ export function Step4DateTime({
         let isClosed = false
 
         if (scheduleData) {
-          isClosed = scheduleData.is_closed || false
+          isClosed = scheduleData.is_open === false ? true : false
           if (scheduleData.open_time) openMin = timeToMinutes(scheduleData.open_time)
           if (scheduleData.close_time) closeMin = timeToMinutes(scheduleData.close_time)
           if (scheduleData.lunch_start) lunchStartMin = timeToMinutes(scheduleData.lunch_start)
