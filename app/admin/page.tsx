@@ -246,19 +246,20 @@ export default function AdminPage() {
     const targetBarberId = selectedBarber === "geral" ? null : selectedBarber;
 
     for (const item of schedules) {
-      // 1. Remove o registro existente para evitar duplicidade ou conflito
-      let deleteQuery = supabase
-        .from("barber_schedules")
-        .delete()
-        .eq("day_of_week", item.dayOfWeek);
-
+      // 1. Remove o registro existente de forma segura
       if (targetBarberId === null) {
-        deleteQuery = deleteQuery.is("barber_id", null);
+        await supabase
+          .from("barber_schedules")
+          .delete()
+          .is("barber_id", null)
+          .eq("day_of_week", item.dayOfWeek);
       } else {
-        deleteQuery = deleteQuery.eq("barber_id", targetBarberId);
+        await supabase
+          .from("barber_schedules")
+          .delete()
+          .eq("barber_id", targetBarberId)
+          .eq("day_of_week", item.dayOfWeek);
       }
-
-      await deleteQuery;
 
       // 2. Insere o novo estado atualizado
       const payload: any = {
@@ -272,6 +273,10 @@ export default function AdminPage() {
       if (targetBarberId !== null) {
         payload.lunch_start = item.lunchStart;
         payload.lunch_end = item.lunchEnd;
+      } else {
+        // Para o geral, garantimos que o almoço vá como nulo ou limpo
+        payload.lunch_start = null;
+        payload.lunch_end = null;
       }
 
       const { error } = await supabase.from("barber_schedules").insert([payload]);
