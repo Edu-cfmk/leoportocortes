@@ -126,10 +126,13 @@ export function Step4DateTime({
           return
         }
 
-        // 3. Gera os horários baseados rigorosamente na abertura e fechamento
+        // 3. Gera os horários baseados rigorosamente na abertura, fechamento e duração do serviço
         const serviceDuration = parseDurationToMinutes(selectedService?.duration)
         const slots: string[] = []
-        const intervalStep = 30 // Mudado para 30 min para aproveitar melhor os horários (ex: 14:00, 14:30)
+        
+        // Se o serviço for longo (ex: mais de 1h), podemos avançar de 30 em 30 min ou pela própria duração. 
+        // Usar 30 min permite que o cliente escolha qualquer horário livre de 30 em 30 min que caiba o serviço do início ao fim.
+        const intervalStep = 30 
 
         let currentMin = openMin
         while (currentMin + serviceDuration <= closeMin) {
@@ -145,7 +148,7 @@ export function Step4DateTime({
 
         setAvailableSlots(slots)
 
-        // 4. Busca os agendamentos já existentes
+        // 4. Busca os agendamentos já existentes para este profissional nesta data
         const { data: bookingsData, error: bookingError } = await supabase
           .from("bookings")
           .select("booking_time, status, service_name")
@@ -164,6 +167,7 @@ export function Step4DateTime({
             const startTime = booking.booking_time
             const startMin = timeToMinutes(startTime)
             
+            // Duração dinâmica baseada no nome ou padrão genérico de 45 min caso não especificado
             let durationMin = 45
             if (booking.service_name) {
               const serviceNameLower = booking.service_name.toLowerCase()
@@ -173,6 +177,8 @@ export function Step4DateTime({
                 serviceNameLower.includes("1h")
               ) {
                 durationMin = 60
+              } else if (serviceNameLower.includes("luzes") || serviceNameLower.includes("completo")) {
+                durationMin = 115 // Exemplo para serviços mais longos como 1h55 se necessário
               }
             }
 
@@ -200,6 +206,8 @@ export function Step4DateTime({
     const slotEndMin = slotStartMin + serviceDuration
 
     for (const booked of bookedIntervals) {
+      // Se o horário pretendido começa antes do agendamento anterior terminar 
+      // E termina depois que o agendamento anterior começou, há colisão!
       if (slotStartMin < booked.end && slotEndMin > booked.start) {
         return true
       }
