@@ -69,7 +69,7 @@ export function Step4DateTime({
   }
 
   useEffect(() => {
-   async function fetchScheduleAndBookings() {
+    async function fetchScheduleAndBookings() {
       if (!selectedDate || !selectedBarber) {
         setAvailableSlots([])
         setBookedIntervals([])
@@ -129,9 +129,6 @@ export function Step4DateTime({
         // 3. Gera os horários baseados rigorosamente na abertura, fechamento e duração do serviço
         const serviceDuration = parseDurationToMinutes(selectedService?.duration)
         const slots: string[] = []
-        
-        // Se o serviço for longo (ex: mais de 1h), podemos avançar de 30 em 30 min ou pela própria duração. 
-        // Usar 30 min permite que o cliente escolha qualquer horário livre de 30 em 30 min que caiba o serviço do início ao fim.
         const intervalStep = 30 
 
         let currentMin = openMin
@@ -148,10 +145,10 @@ export function Step4DateTime({
 
         setAvailableSlots(slots)
 
-        // 4. Busca os agendamentos já existentes para este profissional nesta data
+        // 4. Busca os agendamentos existentes buscando a duração salva no banco
         const { data: bookingsData, error: bookingError } = await supabase
           .from("bookings")
-          .select("booking_time, status, service_name")
+          .select("booking_time, status, service_name, service_duration")
           .eq("booking_date", selectedDate)
           .eq("barber_name", selectedBarber.name)
 
@@ -167,20 +164,8 @@ export function Step4DateTime({
             const startTime = booking.booking_time
             const startMin = timeToMinutes(startTime)
             
-            // Duração dinâmica baseada no nome ou padrão genérico de 45 min caso não especificado
-            let durationMin = 45
-            if (booking.service_name) {
-              const serviceNameLower = booking.service_name.toLowerCase()
-              if (
-                serviceNameLower.includes("degrade") || 
-                serviceNameLower.includes("combo") || 
-                serviceNameLower.includes("1h")
-              ) {
-                durationMin = 60
-              } else if (serviceNameLower.includes("luzes") || serviceNameLower.includes("completo")) {
-                durationMin = 115 // Exemplo para serviços mais longos como 1h55 se necessário
-              }
-            }
+            // Lê a duração diretamente do banco ou usa 45 min como padrão
+            const durationMin = booking.service_duration ? parseDurationToMinutes(booking.service_duration) : 45
 
             intervals.push({
               start: startMin,
@@ -199,7 +184,6 @@ export function Step4DateTime({
 
     fetchScheduleAndBookings()
   }, [selectedDate, selectedBarber, selectedService])
-
   const isSlotUnavailable = (slotTime: string) => {
     const slotStartMin = timeToMinutes(slotTime)
     const serviceDuration = parseDurationToMinutes(selectedService?.duration)
