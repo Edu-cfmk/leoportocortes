@@ -82,7 +82,7 @@ export function Step4DateTime({
         const dayIndex = dateObj.getDay()
         const dayOfWeekName = WEEKDAYS[dayIndex]
 
-        // 1. Busca a regra GERAL da barbearia
+        // 1. Busca a regra GERAL da barbearia (Manda obrigatoriamente na Abertura e Fechamento)
         const { data: generalScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
@@ -90,7 +90,7 @@ export function Step4DateTime({
           .eq("day_of_week", dayOfWeekName)
           .maybeSingle()
 
-        // 2. Busca a regra ESPECÍFICA do colaborador selecionado
+        // 2. Busca a regra ESPECÍFICA do colaborador (Usada APENAS para almoço ou se o dia estiver fechado para ele)
         const { data: barberScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
@@ -98,16 +98,16 @@ export function Step4DateTime({
           .eq("day_of_week", dayOfWeekName)
           .maybeSingle()
 
-        // FORÇANDO ABERTURA E FECHAMENTO GERAIS DA BARBEARIA PARA TODOS
+        // Abertura e Fechamento vêm ESTRITAMENTE do GERAL da barbearia
         let openMin = generalScheduleData?.open_time ? timeToMinutes(generalScheduleData.open_time) : 8 * 60
         let closeMin = generalScheduleData?.close_time ? timeToMinutes(generalScheduleData.close_time) : 18 * 60
         let isClosed = generalScheduleData?.is_open === false ? true : false
 
-        // Almoço padrão (caso o colaborador não tenha configurado)
+        // Almoço padrão
         let lunchStartMin = 12 * 60
         let lunchEndMin = 13 * 60
 
-        // Se o colaborador tiver configuração própria, o almoço dele e o status de fechado individual prevalecem
+        // Se o colaborador tiver configuração própria, verificamos se ele fechou o dia individualmente ou o almoço dele
         if (barberScheduleData) {
           if (barberScheduleData.is_open === false) isClosed = true
           if (barberScheduleData.lunch_start) lunchStartMin = timeToMinutes(barberScheduleData.lunch_start)
