@@ -82,36 +82,35 @@ export function Step4DateTime({
         const dayIndex = dateObj.getDay()
         const dayOfWeekName = WEEKDAYS[dayIndex]
 
-        // 1. Busca a regra GERAL da barbearia
-        const { data: generalScheduleData, error: genError } = await supabase
+        // 1. Busca a regra GERAL da barbearia (procurando barber_id como null ou vazio)
+        const { data: generalScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
-          .is("barber_id", null)
-          .eq("day_of_week", dayOfWeekName)
+          .or("barber_id.is.null,barber_id.eq.")
+          .ilike("day_of_week", dayOfWeekName)
           .maybeSingle()
 
-        console.log("DADOS GERAIS RETORNADOS:", generalScheduleData, genError)
-        console.log("DIA DA SEMANA BUSCADO:", dayOfWeekName)
-
-        // 2. Busca a regra do colaborador APENAS para ver se ele tirou folga no dia ou personalizou o almoço
+        // 2. Busca a regra ESPECÍFICA do colaborador
         const { data: barberScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
           .eq("barber_id", selectedBarber.id)
-          .eq("day_of_week", dayOfWeekName)
+          .ilike("day_of_week", dayOfWeekName)
           .maybeSingle()
 
-        // ABERTURA E FECHAMENTO: Vierem obrigatoriamente do Geral. Se não houver geral cadastrado, usa 08:00 às 18:00 como segurança.
-        let openMin = generalScheduleData?.open_time ? timeToMinutes(generalScheduleData.open_time) : 8 * 60
-        let closeMin = generalScheduleData?.close_time ? timeToMinutes(generalScheduleData.close_time) : 18 * 60
+        // Abertura e Fechamento vêm primariamente do Geral. Se não achar, usa 07:00 as 19:00 de padrão.
+        let openMin = generalScheduleData?.open_time ? timeToMinutes(generalScheduleData.open_time) : 7 * 60
+        let closeMin = generalScheduleData?.close_time ? timeToMinutes(generalScheduleData.close_time) : 19 * 60
         let isClosed = generalScheduleData?.is_open === false ? true : false
 
         // Almoço padrão
         let lunchStartMin = 12 * 60
         let lunchEndMin = 13 * 60
 
-        // Se o colaborador tiver configuração própria, o status de fechado dele e o almoço dele prevalecem
+        // Se o colaborador tiver configuração própria, ela sobrescreve
         if (barberScheduleData) {
+          if (barberScheduleData.open_time) openMin = timeToMinutes(barberScheduleData.open_time)
+          if (barberScheduleData.close_time) closeMin = timeToMinutes(barberScheduleData.close_time)
           if (barberScheduleData.is_open === false) isClosed = true
           if (barberScheduleData.lunch_start) lunchStartMin = timeToMinutes(barberScheduleData.lunch_start)
           if (barberScheduleData.lunch_end) lunchEndMin = timeToMinutes(barberScheduleData.lunch_end)
