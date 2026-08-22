@@ -82,13 +82,16 @@ export function Step4DateTime({
         const dayIndex = dateObj.getDay()
         const dayOfWeekName = WEEKDAYS[dayIndex]
 
-        // 1. Busca a regra GERAL da barbearia (Fonte única da verdade para Abertura e Fechamento)
-        const { data: generalScheduleData } = await supabase
+        // 1. Busca a regra GERAL da barbearia
+        const { data: generalScheduleData, error: genError } = await supabase
           .from("barber_schedules")
           .select("*")
           .is("barber_id", null)
           .eq("day_of_week", dayOfWeekName)
           .maybeSingle()
+
+        console.log("DADOS GERAIS RETORNADOS:", generalScheduleData, genError)
+        console.log("DIA DA SEMANA BUSCADO:", dayOfWeekName)
 
         // 2. Busca a regra do colaborador APENAS para ver se ele tirou folga no dia ou personalizou o almoço
         const { data: barberScheduleData } = await supabase
