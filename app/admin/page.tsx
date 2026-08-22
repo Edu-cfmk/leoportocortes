@@ -246,6 +246,21 @@ export default function AdminPage() {
     const targetBarberId = selectedBarber === "geral" ? null : selectedBarber;
 
     for (const item of schedules) {
+      // 1. Remove o registro existente para evitar duplicidade ou conflito
+      let deleteQuery = supabase
+        .from("barber_schedules")
+        .delete()
+        .eq("day_of_week", item.dayOfWeek);
+
+      if (targetBarberId === null) {
+        deleteQuery = deleteQuery.is("barber_id", null);
+      } else {
+        deleteQuery = deleteQuery.eq("barber_id", targetBarberId);
+      }
+
+      await deleteQuery;
+
+      // 2. Insere o novo estado atualizado
       const payload: any = {
         barber_id: targetBarberId,
         day_of_week: item.dayOfWeek,
@@ -254,15 +269,12 @@ export default function AdminPage() {
         close_time: item.closeTime,
       };
 
-      // Só envia o almoço se não for geral
       if (targetBarberId !== null) {
         payload.lunch_start = item.lunchStart;
         payload.lunch_end = item.lunchEnd;
       }
 
-      const { error } = await supabase
-        .from("barber_schedules")
-        .upsert(payload, { onConflict: "barber_id,day_of_week" });
+      const { error } = await supabase.from("barber_schedules").insert([payload]);
 
       if (error) {
         console.error("Erro ao salvar dia:", item.dayOfWeek, error.message);
