@@ -82,15 +82,13 @@ export function Step4DateTime({
         const dayIndex = dateObj.getDay()
         const dayOfWeekName = WEEKDAYS[dayIndex]
 
-        // 1. Busca a regra GERAL da barbearia (procurando barber_id como null ou vazio)
-        const { data: generalScheduleData } = await supabase
+        // 1. Busca todos os horários da barbearia (Gerais onde barber_id é nulo)
+        const { data: generalSchedules } = await supabase
           .from("barber_schedules")
           .select("*")
-          .or("barber_id.is.null,barber_id.eq.")
-          .ilike("day_of_week", dayOfWeekName)
-          .maybeSingle()
+          .is("barber_id", null)
 
-        // 2. Busca a regra ESPECÍFICA do colaborador
+        // 2. Busca a regra ESPECÍFICA do colaborador selecionado
         const { data: barberScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
@@ -98,12 +96,16 @@ export function Step4DateTime({
           .ilike("day_of_week", dayOfWeekName)
           .maybeSingle()
 
-        // Abertura e Fechamento vêm primariamente do Geral. Se não achar, usa 07:00 as 19:00 de padrão.
+        // Encontra o dia correspondente no array geral
+        const generalScheduleData = generalSchedules?.find(
+          (s: any) => s.day_of_week?.toLowerCase() === dayOfWeekName.toLowerCase()
+        )
+
+        // Abertura e Fechamento vêm primariamente do Geral
         let openMin = generalScheduleData?.open_time ? timeToMinutes(generalScheduleData.open_time) : 7 * 60
         let closeMin = generalScheduleData?.close_time ? timeToMinutes(generalScheduleData.close_time) : 19 * 60
         let isClosed = generalScheduleData?.is_open === false ? true : false
 
-        // Almoço padrão
         let lunchStartMin = 12 * 60
         let lunchEndMin = 13 * 60
 
