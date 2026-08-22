@@ -17,14 +17,6 @@ interface Step4Props {
   onBack: () => void
 }
 
-interface WorkingHours {
-  open_time: string
-  close_time: string
-  lunch_start: string
-  lunch_end: string
-  is_closed: boolean
-}
-
 const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
@@ -87,12 +79,11 @@ export function Step4DateTime({
 
       setLoadingTimes(true)
       try {
-        // 1. Descobre o dia da semana (ex: "sexta", "sabado")
         const dateObj = new Date(selectedDate + "T00:00:00")
         const dayIndex = dateObj.getDay()
         const dayOfWeekName = WEEKDAYS[dayIndex]
 
-       // 1. Pega sempre a regra da barbearia GERAL (abertura e fechamento oficiais)
+        // 1. Busca a regra GERAL da barbearia para o dia
         const { data: generalScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
@@ -100,7 +91,7 @@ export function Step4DateTime({
           .eq("day_of_week", dayOfWeekName)
           .maybeSingle()
 
-        // 2. Pega a regra específica do colaborador (para ver se tem almoço próprio ou se está fechado)
+        // 2. Busca a regra ESPECÍFICA do colaborador selecionado (se houver)
         const { data: barberScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
@@ -108,21 +99,16 @@ export function Step4DateTime({
           .eq("day_of_week", dayOfWeekName)
           .maybeSingle()
 
-        // Valores padrão de segurança
-        let openMin = 8 * 60
-        let closeMin = 19 * 60
+        // Define os horários baseados estritamente no GERAL se existir, senão usa padrão 8h-18h
+        let openMin = generalScheduleData?.open_time ? timeToMinutes(generalScheduleData.open_time) : 8 * 60
+        let closeMin = generalScheduleData?.close_time ? timeToMinutes(generalScheduleData.close_time) : 18 * 60
+        let isClosed = generalScheduleData?.is_open === false ? true : false
+
+        // Almoço padrão
         let lunchStartMin = 12 * 60
         let lunchEndMin = 13 * 60
-        let isClosed = false
 
-        // Abertura e Fechamento mandam pelo GERAL
-        if (generalScheduleData) {
-          isClosed = generalScheduleData.is_open === false ? true : false
-          if (generalScheduleData.open_time) openMin = timeToMinutes(generalScheduleData.open_time)
-          if (generalScheduleData.close_time) closeMin = timeToMinutes(generalScheduleData.close_time)
-        }
-
-        // Se o colaborador tiver configuração própria, respeitamos se ele fechou o dia e puxamos o almoço dele
+        // Se o colaborador tiver configuração própria, ela ajusta o almoço ou se ele fechou o dia
         if (barberScheduleData) {
           if (barberScheduleData.is_open === false) isClosed = true
           if (barberScheduleData.lunch_start) lunchStartMin = timeToMinutes(barberScheduleData.lunch_start)
@@ -135,18 +121,14 @@ export function Step4DateTime({
           return
         }
 
-        // 3. Gera os slots dinamicamente respeitando abertura, fechamento e pausa de almoço
+        // 3. Gera os slots dinamicamente de hora em hora
         const serviceDuration = parseDurationToMinutes(selectedService?.duration)
         const slots: string[] = []
-        
-        // ALTERAÇÃO: Mudamos o intervalStep de 15 para 60 para gerar de hora em hora
         const intervalStep = 60 
 
         let currentMin = openMin
         while (currentMin + serviceDuration <= closeMin) {
           const slotEndMin = currentMin + serviceDuration
-
-          // Verifica se o slot cruza com o horário de almoço
           const crossesLunch = currentMin < lunchEndMin && slotEndMin > lunchStartMin
 
           if (!crossesLunch) {
