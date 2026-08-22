@@ -30,7 +30,7 @@ const MONTH_NAMES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ]
 
-const WEEKDAYS = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"]
+const WEEKDAYS = ["domingo", "segunda-feira", "terca-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sabado"]
 
 export function Step4DateTime({
   selectedDate,
@@ -92,7 +92,7 @@ export function Step4DateTime({
         const dayIndex = dateObj.getDay()
         const dayOfWeekName = WEEKDAYS[dayIndex]
 
-        // 2. Busca as configurações de horário: primeiro tenta do colaborador, se não achar, busca do geral (barber_id IS NULL)
+       // 2. Busca as configurações de horário: 
         const { data: barberScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
@@ -102,31 +102,33 @@ export function Step4DateTime({
 
         let scheduleData = barberScheduleData
 
-        if (!scheduleData) {
-          // Se o colaborador não tiver escala própria para o dia, pega a geral da barbearia
-          const { data: generalScheduleData } = await supabase
-            .from("barber_schedules")
-            .select("*")
-            .is("barber_id", null)
-            .eq("day_of_week", dayOfWeekName)
-            .maybeSingle()
-          
-          scheduleData = generalScheduleData
-        }
+        // Se o colaborador não tiver horário específico, ou se quisermos que o geral mande na abertura/fechamento:
+        const { data: generalScheduleData } = await supabase
+          .from("barber_schedules")
+          .select("*")
+          .is("barber_id", null)
+          .eq("day_of_week", dayOfWeekName)
+          .maybeSingle()
 
         // Valores padrão caso não encontre nenhum registro
-        let openMin = 8 * 60
-        let closeMin = 19 * 60
+        let openMin = 9 * 60
+        let closeMin = 18 * 60
         let lunchStartMin = 12 * 60
         let lunchEndMin = 13 * 60
         let isClosed = false
 
-        if (scheduleData) {
-          isClosed = scheduleData.is_open === false ? true : false
-          if (scheduleData.open_time) openMin = timeToMinutes(scheduleData.open_time)
-          if (scheduleData.close_time) closeMin = timeToMinutes(scheduleData.close_time)
-          if (scheduleData.lunch_start) lunchStartMin = timeToMinutes(scheduleData.lunch_start)
-          if (scheduleData.lunch_end) lunchEndMin = timeToMinutes(scheduleData.lunch_end)
+        // Se existir regra geral, usa a abertura e fechamento gerais como base
+        if (generalScheduleData) {
+          isClosed = generalScheduleData.is_open === false ? true : false
+          if (generalScheduleData.open_time) openMin = timeToMinutes(generalScheduleData.open_time)
+          if (generalScheduleData.close_time) closeMin = timeToMinutes(generalScheduleData.close_time)
+        }
+
+        // Se o colaborador tiver uma regra própria (ex: horário de almoço individual), sobrescreve o almoço e se estiver fechado
+        if (barberScheduleData) {
+          if (barberScheduleData.is_open === false) isClosed = true
+          if (barberScheduleData.lunch_start) lunchStartMin = timeToMinutes(barberScheduleData.lunch_start)
+          if (barberScheduleData.lunch_end) lunchEndMin = timeToMinutes(barberScheduleData.lunch_end)
         }
 
         if (isClosed) {
