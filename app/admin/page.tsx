@@ -356,6 +356,7 @@ export default function AdminPage() {
             setSchedules={setSchedules}
             handleSaveSettings={handleSaveSettings}
             barbers={barbers}
+            selectedBarber={selectedBarber}
             setSelectedBarber={setSelectedBarber}
           />
         )}

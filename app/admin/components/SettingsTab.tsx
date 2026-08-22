@@ -3,8 +3,8 @@
 import { Settings, Check, X } from "lucide-react";
 
 export interface DaySchedule {
-  dayOfWeek: string; // ex: "segunda", "terca", etc.
-  label: string; // ex: "Segunda-feira"
+  dayOfWeek: string;
+  label: string;
   isOpen: boolean;
   openTime: string;
   closeTime: string;
@@ -17,6 +17,7 @@ interface SettingsTabProps {
   setSchedules: React.Dispatch<React.SetStateAction<DaySchedule[]>>;
   handleSaveSettings: () => void;
   barbers: any[];
+  selectedBarber: string; // Adicionado para sabermos se é 'geral' ou um ID
   setSelectedBarber: (id: string) => void;
 }
 
@@ -25,6 +26,7 @@ export function SettingsTab({
   setSchedules,
   handleSaveSettings,
   barbers,
+  selectedBarber,
   setSelectedBarber,
 }: SettingsTabProps) {
   const updateDayField = (
@@ -39,6 +41,8 @@ export function SettingsTab({
     );
   };
 
+  const isGeral = selectedBarber === "geral";
+
   return (
     <div className="space-y-6">
       {/* Seletor de Colaborador ou Geral */}
@@ -47,6 +51,7 @@ export function SettingsTab({
           Selecionar Escala (Colaborador ou Geral)
         </label>
         <select
+          value={selectedBarber}
           className="bg-zinc-900 border border-zinc-800 p-2.5 rounded-lg text-white w-full text-xs focus:outline-none focus:border-red-600"
           onChange={(e) => setSelectedBarber(e.target.value)}
         >
@@ -62,7 +67,7 @@ export function SettingsTab({
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 sm:p-6 space-y-6">
         <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-4">
           <Settings className="w-4 h-4 text-red-500" /> Horários de
-          Funcionamento por Dia da Semana
+          Funcionamento por Dia da Semana {isGeral ? "(Geral)" : "(Individual do Colaborador)"}
         </h3>
 
         <div className="space-y-4">
@@ -76,7 +81,6 @@ export function SettingsTab({
               }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                {/* Nome do Dia e Botão de Permissão (Aberto/Fechado) */}
                 <div className="flex items-center justify-between sm:justify-start gap-4">
                   <span className="text-sm font-bold text-white w-32">
                     {schedule.label}
@@ -105,9 +109,8 @@ export function SettingsTab({
                   </button>
                 </div>
 
-                {/* Inputs de Horário (Apenas se estiver aberto) */}
                 {schedule.isOpen && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1 max-w-2xl">
+                  <div className={`grid gap-2 flex-1 max-w-2xl ${isGeral ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"}`}>
                     <div>
                       <label className="text-[10px] text-zinc-400 block mb-1">
                         Abertura
@@ -142,40 +145,46 @@ export function SettingsTab({
                         className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none"
                       />
                     </div>
-                    <div>
-                      <label className="text-[10px] text-zinc-400 block mb-1">
-                        Início Almoço
-                      </label>
-                      <input
-                        type="time"
-                        value={schedule.lunchStart}
-                        onChange={(e) =>
-                          updateDayField(
-                            schedule.dayOfWeek,
-                            "lunchStart",
-                            e.target.value,
-                          )
-                        }
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-zinc-400 block mb-1">
-                        Fim Almoço
-                      </label>
-                      <input
-                        type="time"
-                        value={schedule.lunchEnd}
-                        onChange={(e) =>
-                          updateDayField(
-                            schedule.dayOfWeek,
-                            "lunchEnd",
-                            e.target.value,
-                          )
-                        }
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none"
-                      />
-                    </div>
+
+                    {/* Mostra o Almoço apenas se NÃO for o modo Geral */}
+                    {!isGeral && (
+                      <>
+                        <div>
+                          <label className="text-[10px] text-zinc-400 block mb-1">
+                            Início Almoço
+                          </label>
+                          <input
+                            type="time"
+                            value={schedule.lunchStart}
+                            onChange={(e) =>
+                              updateDayField(
+                                schedule.dayOfWeek,
+                                "lunchStart",
+                                e.target.value,
+                              )
+                            }
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-zinc-400 block mb-1">
+                            Fim Almoço
+                          </label>
+                          <input
+                            type="time"
+                            value={schedule.lunchEnd}
+                            onChange={(e) =>
+                              updateDayField(
+                                schedule.dayOfWeek,
+                                "lunchStart" === "lunchStart" ? "lunchEnd" : "lunchEnd", // mantendo o campo correto
+                                e.target.value,
+                              )
+                            }
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none"
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
