@@ -68,7 +68,6 @@ export function Step4DateTime({
     return totalMinutes > 0 ? totalMinutes : 45
   }
 
-  // Busca os horários de expediente e os agendamentos ocupados do dia selecionado
   useEffect(() => {
     async function fetchScheduleAndBookings() {
       if (!selectedDate || !selectedBarber) {
@@ -83,7 +82,7 @@ export function Step4DateTime({
         const dayIndex = dateObj.getDay()
         const dayOfWeekName = WEEKDAYS[dayIndex]
 
-        // 1. Busca a regra GERAL da barbearia (Manda obrigatoriamente na Abertura e Fechamento)
+        // 1. Busca a regra GERAL da barbearia
         const { data: generalScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
@@ -91,7 +90,7 @@ export function Step4DateTime({
           .eq("day_of_week", dayOfWeekName)
           .maybeSingle()
 
-        // 2. Busca a regra ESPECÍFICA do colaborador selecionado (Manda apenas no Almoço / Fechamento individual)
+        // 2. Busca a regra ESPECÍFICA do colaborador selecionado
         const { data: barberScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
@@ -99,16 +98,16 @@ export function Step4DateTime({
           .eq("day_of_week", dayOfWeekName)
           .maybeSingle()
 
-        // Abertura e Fechamento vêm estritamente do GERAL
+        // FORÇANDO ABERTURA E FECHAMENTO GERAIS DA BARBEARIA PARA TODOS
         let openMin = generalScheduleData?.open_time ? timeToMinutes(generalScheduleData.open_time) : 8 * 60
         let closeMin = generalScheduleData?.close_time ? timeToMinutes(generalScheduleData.close_time) : 18 * 60
         let isClosed = generalScheduleData?.is_open === false ? true : false
 
-        // Almoço padrão
+        // Almoço padrão (caso o colaborador não tenha configurado)
         let lunchStartMin = 12 * 60
         let lunchEndMin = 13 * 60
 
-        // Se o colaborador tiver configuração própria, usamos o almoço dele e se ele fechou o dia
+        // Se o colaborador tiver configuração própria, o almoço dele e o status de fechado individual prevalecem
         if (barberScheduleData) {
           if (barberScheduleData.is_open === false) isClosed = true
           if (barberScheduleData.lunch_start) lunchStartMin = timeToMinutes(barberScheduleData.lunch_start)
@@ -121,7 +120,7 @@ export function Step4DateTime({
           return
         }
 
-        // 3. Gera os slots dinamicamente de hora em hora
+        // 3. Gera os slots dinamicamente baseados na abertura GERAL até o fechamento GERAL
         const serviceDuration = parseDurationToMinutes(selectedService?.duration)
         const slots: string[] = []
         const intervalStep = 60 
