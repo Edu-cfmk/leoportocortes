@@ -1,23 +1,23 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Check, ArrowLeft, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { BookingData } from "@/types/booking"
-import { supabase } from "@/lib/supabase"
+import { useState } from "react";
+import { Check, ArrowLeft, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BookingData } from "@/types/booking";
+import { supabase } from "@/lib/supabase";
 
 interface Step5Props {
-  booking: BookingData
-  onFinish: () => void
-  onBack: () => void
+  booking: BookingData;
+  onFinish: () => void;
+  onBack: () => void;
 }
 
 export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
 
       const { error } = await supabase.from("bookings").insert([
         {
@@ -25,26 +25,27 @@ export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
           client_phone: booking.clientPhone,
           service_name: booking.service?.name,
           service_price: booking.service?.price,
+          service_duration: booking.service?.duration, // <-- Salvando a string de duração (ex: "1h", "1h 25min")
           barber_name: booking.barber?.name,
           booking_date: booking.date,
           booking_time: booking.time,
         },
-      ])
+      ]);
 
       if (error) {
-        console.error("Erro ao salvar no Supabase:", error)
-        alert("Ocorreu um erro ao salvar o agendamento. Tente novamente.")
-        return
+        console.error("Erro ao salvar no Supabase:", error);
+        alert("Ocorreu um erro ao salvar o agendamento. Tente novamente.");
+        return;
       }
 
-      onFinish()
+      onFinish();
     } catch (err) {
-      console.error(err)
-      alert("Erro inesperado ao processar agendamento.")
+      console.error(err);
+      alert("Erro inesperado ao processar agendamento.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -60,7 +61,9 @@ export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
         </div>
         <div className="flex justify-between border-b border-zinc-800 pb-2">
           <span className="text-zinc-500">Telefone:</span>
-          <span className="font-semibold text-white">{booking.clientPhone}</span>
+          <span className="font-semibold text-white">
+            {booking.clientPhone}
+          </span>
         </div>
         <div className="flex justify-between border-b border-zinc-800 pb-2">
           <span className="text-zinc-500">Serviço:</span>
@@ -70,12 +73,16 @@ export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
         </div>
         <div className="flex justify-between border-b border-zinc-800 pb-2">
           <span className="text-zinc-500">Barbeiro:</span>
-          <span className="font-semibold text-white">{booking.barber?.name}</span>
+          <span className="font-semibold text-white">
+            {booking.barber?.name}
+          </span>
         </div>
         <div className="flex justify-between border-b border-zinc-800 pb-2">
           <span className="text-zinc-500">Data:</span>
           <span className="font-semibold text-white">
-            {booking.date ? new Date(booking.date + "T00:00:00").toLocaleDateString("pt-BR") : ""}
+            {booking.date
+              ? new Date(booking.date + "T00:00:00").toLocaleDateString("pt-BR")
+              : ""}
           </span>
         </div>
         <div className="flex justify-between">
@@ -108,5 +115,5 @@ export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
         </Button>
       </div>
     </div>
-  )
+  );
 }
