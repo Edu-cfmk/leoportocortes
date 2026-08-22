@@ -242,50 +242,36 @@ export default function AdminPage() {
     }
   };
 
-  const handleSaveSettings = async () => {
+ const handleSaveSettings = async () => {
     const targetBarberId = selectedBarber === "geral" ? null : selectedBarber;
 
-    for (const item of schedules) {
-      // 1. Remove o registro existente de forma segura
-      if (targetBarberId === null) {
-        await supabase
-          .from("barber_schedules")
-          .delete()
-          .is("barber_id", null)
-          .eq("day_of_week", item.dayOfWeek);
-      } else {
-        await supabase
-          .from("barber_schedules")
-          .delete()
-          .eq("barber_id", targetBarberId)
-          .eq("day_of_week", item.dayOfWeek);
-      }
+    // Prepara os dados para salvar todos de uma vez
+    const payload = schedules.map((item) => ({
+      barber_id: targetBarberId,
+      day_of_week: item.dayOfWeek,
+      is_open: item.isOpen,
+      open_time: item.openTime,
+      close_time: item.closeTime,
+      lunch_start: targetBarberId !== null ? item.lunchStart : null,
+      lunch_end: targetBarberId !== null ? item.lunchEnd : null,
+    }));
 
-      // 2. Insere o novo estado atualizado
-      const payload: any = {
-        barber_id: targetBarberId,
-        day_of_week: item.dayOfWeek,
-        is_open: item.isOpen,
-        open_time: item.openTime,
-        close_time: item.closeTime,
-      };
+    // Se a sua tabela tiver uma Unique Constraint em (barber_id, day_of_week) 
+    // ou se o barber_id for NULL tratado com coalesce, o upsert substitui perfeitamente.
+    // Para garantir que o delete limpe antes com precisão cirúrgica:
+    
+    if (targetBarberId === null) {
+      await supabase.from("barber_schedules").delete().is("barber_id", null);
+    } else {
+      await supabase.from("barber_schedules").delete().eq("barber_id", targetBarberId);
+    }
 
-      if (targetBarberId !== null) {
-        payload.lunch_start = item.lunchStart;
-        payload.lunch_end = item.lunchEnd;
-      } else {
-        // Para o geral, garantimos que o almoço vá como nulo ou limpo
-        payload.lunch_start = null;
-        payload.lunch_end = null;
-      }
+    const { error } = await supabase.from("barber_schedules").insert(payload);
 
-      const { error } = await supabase.from("barber_schedules").insert([payload]);
-
-      if (error) {
-        console.error("Erro ao salvar dia:", item.dayOfWeek, error.message);
-        alert("Erro ao salvar: " + error.message);
-        return;
-      }
+    if (error) {
+      console.error("Erro ao salvar horários:", error.message);
+      alert("Erro ao salvar: " + error.message);
+      return;
     }
 
     alert("Horários salvos com sucesso!");
