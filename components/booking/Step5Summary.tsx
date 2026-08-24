@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { ArrowLeft, Check, Calendar, Clock, User, Scissors, DollarSign, Loader2 } from "lucide-react"
+import { ArrowLeft, Check, Calendar, Clock, User, Scissors, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BookingData } from "@/types/booking"
 import { supabase } from "@/lib/supabase"
@@ -36,24 +36,42 @@ export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
     return `R$ ${(calculateTotal() / 100).toFixed(2).replace('.', ',')}`;
   };
 
+  // Função para somar a duração total dos serviços (ex: "1h", "30min")
+  const calculateTotalDuration = () => {
+    let totalMinutes = 0;
+    booking.services.forEach((s) => {
+      if (s.duration) {
+        const lower = s.duration.toLowerCase();
+        const hoursMatch = lower.match(/(\d+)\s*h/);
+        const minsMatch = lower.match(/(\d+)\s*min/);
+        if (hoursMatch) totalMinutes += parseInt(hoursMatch[1]) * 60;
+        if (minsMatch) totalMinutes += parseInt(minsMatch[1]);
+      }
+    });
+    if (totalMinutes === 0) return "30min";
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    if (h > 0 && m > 0) return `${h}h ${m}min`;
+    if (h > 0) return `${h}h`;
+    return `${m}min`;
+  };
+
   const handleConfirmBooking = async () => {
     setLoading(true)
     try {
-      // Cria uma string unindo os nomes dos serviços escolhidos (ex: "Corte Degrade, Pigmentação")
       const servicesNames = booking.services.map((s) => s.name).join(", ");
-      const firstServiceId = booking.services.length > 0 ? booking.services[0].id : null;
 
-      const { error } = await supabase.from("agendamentos").insert([
+      const { error } = await supabase.from("bookings").insert([
         {
           client_name: booking.clientName,
           client_phone: booking.clientPhone,
-          service_id: firstServiceId, // Compatibilidade com coluna antiga se houver
-          service_name: servicesNames, // Salva todos os serviços em texto
-          barber_id: booking.barber?.id,
-          barber_name: booking.barber?.name,
-          date: booking.date,
-          time: booking.time,
-          total_price: calculateTotal(), // Salva em centavos ou ajuste se sua coluna for texto
+          service_name: servicesNames,
+          service_price: formattedTotal(),
+          barber_name: booking.barber?.name || "Qualquer profissional",
+          booking_date: booking.date,
+          booking_time: booking.time,
+          service_duration: calculateTotalDuration(),
+          status: "confirmed"
         }
       ])
 
