@@ -118,63 +118,87 @@ export function Step4DateTime({
           if (barberScheduleData.lunch_end) lunchEndMin = timeToMinutes(barberScheduleData.lunch_end)
         }
 
-        console.log("Horários definidos -> Abertura:", minutesToTime(openMin), "Fechamento:", minutesToTime(closeMin))
-
         if (isClosed) {
           setAvailableSlots([])
           setLoadingTimes(false)
           return
         }
 
-        // 3. Gera os horários baseados rigorosamente na abertura, fechamento e duração do serviço
-        const serviceDuration = parseDurationToMinutes(selectedService?.duration)
-        const slots: string[] = []
-        const intervalStep = 30 
-
-        let currentMin = openMin
-        while (currentMin + serviceDuration <= closeMin) {
-          const slotEndMin = currentMin + serviceDuration
-          const crossesLunch = currentMin < lunchEndMin && slotEndMin > lunchStartMin
-
-          if (!crossesLunch) {
-            slots.push(minutesToTime(currentMin))
-          }
-
-          currentMin += intervalStep
-        }
-
-        setAvailableSlots(slots)
-
-        // 4. Busca os agendamentos existentes buscando a duração salva no banco
+        // 3. Busca os agendamentos existentes no banco trazendo a duração real salva
         const { data: bookingsData, error: bookingError } = await supabase
           .from("bookings")
           .select("booking_time, status, service_name, service_duration")
           .eq("booking_date", selectedDate)
           .eq("barber_name", selectedBarber.name)
 
-        if (!bookingError && bookingsData) {
-          const intervals: { start: number; end: number }[] = []
+        const intervals: { start: number; end: number }[] = []
 
-          for (const booking of bookingsData) {
-            const statusLower = (booking.status || "").toLowerCase()
-            if (statusLower.includes("cancel") || statusLower.includes("cancelado")) {
-              continue
+        if (!bookingError && bookingsData) {
+          const sortedBookings = [...bookingsData]
+            .filter(b => {
+              const statusLower = (b.status || "").toLowerCase()
+              return !statusLower.includes("cancel") && !statusLower.includes("cancelado")
+            })
+            .sort((a, b) => timeToMinutes(a.booking_time) - timeToMinutes(b.booking_time))
+
+          for (const booking of sortedBookings) {
+            const startMin = timeToMinutes(booking.booking_time)
+            
+            // Lê a duração salva no banco, ou calcula dinamicamente pelo nome como fallback
+            let durationMin = 45
+            if (booking.service_duration) {
+              durationMin = parseDurationToMinutes(booking.service_duration)
+            } else if (booking.service_name) {
+              const name = booking.service_name.toLowerCase()
+              if (name.includes("alisamento")) durationMin = 85
+              else if (name.includes("tribal")) durationMin = 90
+              else if (name.includes("degrade") || name.includes("freestyle") || name.includes("combo")) durationMin = 60
+              else if (name.includes("sobrancelha")) durationMin = 10
             }
 
-            const startTime = booking.booking_time
-            const startMin = timeToMinutes(startTime)
-            
-            // Lê a duração diretamente do banco ou usa 45 min como padrão
-            const durationMin = booking.service_duration ? parseDurationToMinutes(booking.service_duration) : 45
+            intervals.push({ start: startMin, end: startMin + durationMin })
+          }
+        }
+        setBookedIntervals(intervals)
 
-            intervals.push({
-              start: startMin,
-              end: startMin + durationMin
-            })
+        // 4. GERAÇÃO DE HORÁRIOS FLEXÍVEIS (Encaixa o próximo slot exatamente onde o anterior termina)
+        const serviceDuration = parseDurationToMinutes(selectedService?.duration)
+        const slots: string[] = []
+        let currentMin = openMin
+
+        while (currentMin + serviceDuration <= closeMin) {
+          const slotEndMin = currentMin + serviceDuration
+          const crossesLunch = currentMin < lunchEndMin && slotEndMin > lunchStartMin
+
+          let hasCollision = false
+          for (const booked of intervals) {
+            // Se houver conflito com um agendamento existente, saltamos o ponteiro direto para o fim dele!
+            if (currentMin < booked.end && slotEndMin > booked.start) {
+              hasCollision = true
+              currentMin = booked.end
+              break
+            }
           }
 
-          setBookedIntervals(intervals)
+          if (!hasCollision) {
+            if (!crossesLunch) {
+              slots.push(minutesToTime(currentMin))
+            }
+            // Avança para permitir novos encaixes flexíveis
+            currentMin += 5 
+          } else {
+            // Se ocorreu colisão, o loop retoma a partir do novo currentMin atualizado pelo booked.end
+            continue
+          }
+
+          // Garante incremento padrão caso não tenha colidido para não travar o loop
+          currentMin = Math.max(currentMin + 1, currentMin)
         }
+
+        // Remove duplicadas e ordena os horários gerados
+        const uniqueSlots = Array.from(new Set(slots)).sort((a, b) => timeToMinutes(a) - timeToMinutes(b))
+        setAvailableSlots(uniqueSlots)
+
       } catch (err) {
         console.error("Erro inesperado ao carregar horários:", err)
       } finally {
@@ -184,19 +208,17 @@ export function Step4DateTime({
 
     fetchScheduleAndBookings()
   }, [selectedDate, selectedBarber, selectedService])
+
   const isSlotUnavailable = (slotTime: string) => {
     const slotStartMin = timeToMinutes(slotTime)
     const serviceDuration = parseDurationToMinutes(selectedService?.duration)
     const slotEndMin = slotStartMin + serviceDuration
 
     for (const booked of bookedIntervals) {
-      // Se o horário pretendido começa antes do agendamento anterior terminar 
-      // E termina depois que o agendamento anterior começou, há colisão!
       if (slotStartMin < booked.end && slotEndMin > booked.start) {
         return true
       }
     }
-
     return false
   }
 
