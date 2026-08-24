@@ -52,13 +52,26 @@ export function Step2Services({
     }
   };
 
-  // Agrupa os serviços por categoria (Cortes / Serviços Adicionais)
-  const cortes = services.filter(
-    (s) => !s.category || s.category.toLowerCase() === "cortes"
-  );
-  const adicionais = services.filter(
-    (s) => s.category && s.category.toLowerCase() === "serviços adicionais"
-  );
+  // Função auxiliar para normalizar o texto da categoria (remove acentos e letras maiúsculas)
+  const normalizeCategory = (cat?: string) => {
+    if (!cat) return "cortes"; // Se estiver vazio, joga para Cortes por padrão
+    return cat
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  };
+
+  // Filtro flexível para as categorias
+  const cortes = services.filter((s) => {
+    const cat = normalizeCategory(s.category);
+    return cat.includes("corte");
+  });
+
+  const adicionais = services.filter((s) => {
+    const cat = normalizeCategory(s.category);
+    return cat.includes("adicional") || cat.includes("servico");
+  });
 
   return (
     <div className="space-y-6">
