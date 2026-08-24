@@ -15,19 +15,22 @@ interface Step5Props {
 export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
   const [loading, setLoading] = useState(false)
 
-  // Função para calcular o preço total somando os serviços selecionados
+ // Função para calcular o preço total somando os serviços selecionados
   const calculateTotal = () => {
-    let totalCents = 0
-    booking.services.forEach(s => {
-      // Tenta extrair o valor numérico se estiver no formato "R$ XX,XX" ou já for número
-      if (typeof s.price === 'string') {
-        const cleanPrice = s.price.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.')
-        const num = parseFloat(cleanPrice)
-        if (!isNaN(num)) totalCents += num * 100
+    let totalCents = 0;
+    booking.services.forEach((s) => {
+      if (s.price_in_cents) {
+        totalCents += s.price_in_cents;
+      } else if (typeof s.price === "number") {
+        totalCents += s.price * 100;
+      } else if (typeof s.price === "string") {
+        const cleanPrice = s.price.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.');
+        const num = parseFloat(cleanPrice);
+        if (!isNaN(num)) totalCents += num * 100;
       }
-    })
-    return `R$ ${(totalCents / 100).toFixed(2).replace('.', ',')}`
-  }
+    });
+    return `R$ ${(totalCents / 100).toFixed(2).replace('.', ',')}`;
+  };
 
   const handleConfirmBooking = async () => {
     setLoading(true)
