@@ -161,21 +161,25 @@ export function Step4DateTime({
         }
         setBookedIntervals(intervals)
 
-        // 4. GERAÇÃO DE HORÁRIOS FLEXÍVEIS (Encaixa o próximo slot exatamente onde o anterior termina)
+       // 4. GERAÇÃO DE HORÁRIOS FLEXÍVEIS CORRETA
         const serviceDuration = parseDurationToMinutes(selectedService?.duration)
         const slots: string[] = []
         let currentMin = openMin
 
+        // Limita para não passar do horário de fechamento
         while (currentMin + serviceDuration <= closeMin) {
           const slotEndMin = currentMin + serviceDuration
           const crossesLunch = currentMin < lunchEndMin && slotEndMin > lunchStartMin
 
           let hasCollision = false
+          let nextAvailableMin = currentMin + 30 // Pulo padrão de 30 em 30 min se estiver livre
+
           for (const booked of intervals) {
-            // Se houver conflito com um agendamento existente, saltamos o ponteiro direto para o fim dele!
+            // Se houver conflito com um agendamento existente
             if (currentMin < booked.end && slotEndMin > booked.start) {
               hasCollision = true
-              currentMin = booked.end
+              // Pula o ponteiro exatamente para o fim do serviço agendado
+              nextAvailableMin = booked.end
               break
             }
           }
@@ -184,15 +188,10 @@ export function Step4DateTime({
             if (!crossesLunch) {
               slots.push(minutesToTime(currentMin))
             }
-            // Avança para permitir novos encaixes flexíveis
-            currentMin += 5 
+            currentMin += 30 // Incremento padrão limpo (30 em 30 minutos)
           } else {
-            // Se ocorreu colisão, o loop retoma a partir do novo currentMin atualizado pelo booked.end
-            continue
+            currentMin = nextAvailableMin
           }
-
-          // Garante incremento padrão caso não tenha colidido para não travar o loop
-          currentMin = Math.max(currentMin + 1, currentMin)
         }
 
         // Remove duplicadas e ordena os horários gerados
