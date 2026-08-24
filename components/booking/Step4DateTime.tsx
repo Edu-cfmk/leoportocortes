@@ -161,42 +161,21 @@ export function Step4DateTime({
         }
         setBookedIntervals(intervals)
 
-       // 4. GERAÇÃO DE HORÁRIOS FLEXÍVEIS CORRETA
-        const serviceDuration = parseDurationToMinutes(selectedService?.duration)
+        // 4. GERAÇÃO DE HORÁRIOS LIMPA E PADRÃO (De 30 em 30 min)
         const slots: string[] = []
         let currentMin = openMin
 
-        // Limita para não passar do horário de fechamento
-        while (currentMin + serviceDuration <= closeMin) {
-          const slotEndMin = currentMin + serviceDuration
+        while (currentMin < closeMin) {
+          const slotEndMin = currentMin + 30
           const crossesLunch = currentMin < lunchEndMin && slotEndMin > lunchStartMin
 
-          let hasCollision = false
-          let nextAvailableMin = currentMin + 30 // Pulo padrão de 30 em 30 min se estiver livre
-
-          for (const booked of intervals) {
-            // Se houver conflito com um agendamento existente
-            if (currentMin < booked.end && slotEndMin > booked.start) {
-              hasCollision = true
-              // Pula o ponteiro exatamente para o fim do serviço agendado
-              nextAvailableMin = booked.end
-              break
-            }
+          if (!crossesLunch) {
+            slots.push(minutesToTime(currentMin))
           }
-
-          if (!hasCollision) {
-            if (!crossesLunch) {
-              slots.push(minutesToTime(currentMin))
-            }
-            currentMin += 30 // Incremento padrão limpo (30 em 30 minutos)
-          } else {
-            currentMin = nextAvailableMin
-          }
+          currentMin += 30
         }
 
-        // Remove duplicadas e ordena os horários gerados
-        const uniqueSlots = Array.from(new Set(slots)).sort((a, b) => timeToMinutes(a) - timeToMinutes(b))
-        setAvailableSlots(uniqueSlots)
+        setAvailableSlots(slots)
 
       } catch (err) {
         console.error("Erro inesperado ao carregar horários:", err)
@@ -206,7 +185,7 @@ export function Step4DateTime({
     }
 
     fetchScheduleAndBookings()
-  }, [selectedDate, selectedBarber, selectedService])
+  }, [selectedDate, selectedBarber])
 
   const isSlotUnavailable = (slotTime: string) => {
     const slotStartMin = timeToMinutes(slotTime)
@@ -363,7 +342,7 @@ export function Step4DateTime({
                         : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800"
                     }`}
                   >
-                    {time} {isUnavailable && "(Ocupado)"}
+                    {time}
                   </button>
                 )
               })}
