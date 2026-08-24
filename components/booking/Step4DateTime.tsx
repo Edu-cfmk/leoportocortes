@@ -43,6 +43,13 @@ export function Step4DateTime({
   const [availableSlots, setAvailableSlots] = useState<string[]>([])
   const [bookedIntervals, setBookedIntervals] = useState<{ start: number; end: number }[]>([])
   const [loadingTimes, setLoadingTimes] = useState<boolean>(false)
+  const [scheduleConfig, setScheduleConfig] = useState<{ openMin: number; closeMin: number; lunchStartMin: number; lunchEndMin: number; isClosed: boolean }>({
+    openMin: 8 * 60,
+    closeMin: 18 * 60,
+    lunchStartMin: 12 * 60,
+    lunchEndMin: 13 * 60,
+    isClosed: false
+  })
 
   const timeToMinutes = (timeStr: string) => {
     if (!timeStr) return 0
@@ -82,13 +89,13 @@ export function Step4DateTime({
         const dayIndex = dateObj.getDay()
         const dayOfWeekName = WEEKDAYS[dayIndex]
 
-        // 1. Busca todos os horários da barbearia (Gerais onde barber_id é nulo)
+        // 1. Busca todos os horários gerais da barbearia
         const { data: generalSchedules } = await supabase
           .from("barber_schedules")
           .select("*")
           .is("barber_id", null)
 
-        // 2. Busca a regra ESPECÍFICA do colaborador selecionado
+        // 2. Busca a regra específica do colaborador selecionado
         const { data: barberScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
@@ -96,12 +103,10 @@ export function Step4DateTime({
           .ilike("day_of_week", dayOfWeekName)
           .maybeSingle()
 
-        // Encontra o dia correspondente no array geral
         const generalScheduleData = generalSchedules?.find(
           (s: any) => s.day_of_week?.toLowerCase() === dayOfWeekName.toLowerCase()
         )
 
-        // Abertura e Fechamento padrão caso não encontre
         let openMin = generalScheduleData?.open_time ? timeToMinutes(generalScheduleData.open_time) : 8 * 60
         let closeMin = generalScheduleData?.close_time ? timeToMinutes(generalScheduleData.close_time) : 18 * 60
         let isClosed = generalScheduleData?.is_open === false ? true : false
@@ -109,7 +114,6 @@ export function Step4DateTime({
         let lunchStartMin = 12 * 60
         let lunchEndMin = 13 * 60
 
-        // Se o colaborador tiver configuração própria, ela sobrescreve
         if (barberScheduleData) {
           if (barberScheduleData.open_time) openMin = timeToMinutes(barberScheduleData.open_time)
           if (barberScheduleData.close_time) closeMin = timeToMinutes(barberScheduleData.close_time)
@@ -118,13 +122,15 @@ export function Step4DateTime({
           if (barberScheduleData.lunch_end) lunchEndMin = timeToMinutes(barberScheduleData.lunch_end)
         }
 
+        setScheduleConfig({ openMin, closeMin, lunchStartMin, lunchEndMin, isClosed })
+
         if (isClosed) {
           setAvailableSlots([])
           setLoadingTimes(false)
           return
         }
 
-        // 3. Busca os agendamentos existentes no banco trazendo a duração real salva
+        // 3. Busca os agendamentos existentes no banco
         const { data: bookingsData, error: bookingError } = await supabase
           .from("bookings")
           .select("booking_time, status, service_name, service_duration")
@@ -139,11 +145,9 @@ export function Step4DateTime({
               const statusLower = (b.status || "").toLowerCase()
               return !statusLower.includes("cancel") && !statusLower.includes("cancelado")
             })
-            .sort((a, b) => timeToMinutes(a.booking_time) - timeToMinutes(b.booking_time))
 
           for (const booking of sortedBookings) {
             const startMin = timeToMinutes(booking.booking_time)
-            
             let durationMin = 45
             if (booking.service_duration) {
               durationMin = parseDurationToMinutes(booking.service_duration)
@@ -160,41 +164,16 @@ export function Step4DateTime({
         }
         setBookedIntervals(intervals)
 
-        // 4. GERAÇÃO DE HORÁRIOS FLEXÍVEIS (Encaixa após o término dos agendamentos)
-        const serviceDuration = parseDurationToMinutes(selectedService?.duration)
+        // 4. GERAÇÃO DA GRADE FIXA LIMPA (De 30 em 30 min do openMin até closeMin)
         const slots: string[] = []
         let currentMin = openMin
 
-        while (currentMin + serviceDuration <= closeMin) {
-          const slotEndMin = currentMin + serviceDuration
-          const crossesLunch = currentMin < lunchEndMin && slotEndMin > lunchStartMin
-
-          let hasCollision = false
-          let nextJumpMin = currentMin + 30 // Padrão de avanço se estiver livre
-
-          for (const booked of intervals) {
-            // Se o slot colide com um agendamento existente
-            if (currentMin < booked.end && slotEndMin > booked.start) {
-              hasCollision = true
-              // Pula o ponteiro exatamente para o fim do serviço ocupado para permitir encaixe perfeito
-              nextJumpMin = booked.end
-              break
-            }
-          }
-
-          if (!hasCollision) {
-            if (!crossesLunch) {
-              slots.push(minutesToTime(currentMin))
-            }
-            currentMin += 30 // Incremento padrão na grade livre
-          } else {
-            currentMin = nextJumpMin
-          }
+        while (currentMin < closeMin) {
+          slots.push(minutesToTime(currentMin))
+          currentMin += 30
         }
 
-        // Remove duplicadas e ordena cronologicamente
-        const uniqueSlots = Array.from(new Set(slots)).sort((a, b) => timeToMinutes(a) - timeToMinutes(b))
-        setAvailableSlots(uniqueSlots)
+        setAvailableSlots(slots)
 
       } catch (err) {
         console.error("Erro inesperado ao carregar horários:", err)
@@ -204,18 +183,30 @@ export function Step4DateTime({
     }
 
     fetchScheduleAndBookings()
-  }, [selectedDate, selectedBarber, selectedService])
+  }, [selectedDate, selectedBarber])
 
+  // Valida se o horário pode ser escolhido com base na duração do serviço atual
   const isSlotUnavailable = (slotTime: string) => {
+    if (scheduleConfig.isClosed) return true
+
     const slotStartMin = timeToMinutes(slotTime)
     const serviceDuration = parseDurationToMinutes(selectedService?.duration)
     const slotEndMin = slotStartMin + serviceDuration
 
+    // 1. Passa do horário de fechamento
+    if (slotEndMin > scheduleConfig.closeMin) return true
+
+    // 2. Cruza o horário de almoço
+    const crossesLunch = slotStartMin < scheduleConfig.lunchEndMin && slotEndMin > scheduleConfig.lunchStartMin
+    if (crossesLunch) return true
+
+    // 3. Colide com algum agendamento existente
     for (const booked of bookedIntervals) {
       if (slotStartMin < booked.end && slotEndMin > booked.start) {
         return true
       }
     }
+
     return false
   }
 
