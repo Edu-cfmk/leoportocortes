@@ -89,13 +89,13 @@ export function Step4DateTime({
         const dayIndex = dateObj.getDay()
         const dayOfWeekName = WEEKDAYS[dayIndex]
 
-        // 1. Busca todos os horários gerais da barbearia
+        // 1. Busca horários gerais
         const { data: generalSchedules } = await supabase
           .from("barber_schedules")
           .select("*")
           .is("barber_id", null)
 
-        // 2. Busca a regra específica do colaborador selecionado
+        // 2. Busca regra específica do colaborador
         const { data: barberScheduleData } = await supabase
           .from("barber_schedules")
           .select("*")
@@ -130,23 +130,23 @@ export function Step4DateTime({
           return
         }
 
-        // 3. Busca os agendamentos existentes no banco
+        // 3. Busca agendamentos garantindo tolerância a maiúsculas/minúsculas no nome do barbeiro
         const { data: bookingsData, error: bookingError } = await supabase
           .from("bookings")
-          .select("booking_time, status, service_name, service_duration")
+          .select("booking_time, status, service_name, service_duration, barber_name")
           .eq("booking_date", selectedDate)
-          .eq("barber_name", selectedBarber.name)
 
         const intervals: { start: number; end: number }[] = []
 
         if (!bookingError && bookingsData) {
-          const sortedBookings = [...bookingsData]
-            .filter(b => {
-              const statusLower = (b.status || "").toLowerCase()
-              return !statusLower.includes("cancel") && !statusLower.includes("cancelado")
-            })
+          const filteredBookings = bookingsData.filter(b => {
+            const statusLower = (b.status || "").toLowerCase()
+            const isNotCancelled = !statusLower.includes("cancel") && !statusLower.includes("cancelado")
+            const barberMatches = (b.barber_name || "").trim().toLowerCase() === (selectedBarber.name || "").trim().toLowerCase()
+            return isNotCancelled && barberMatches
+          })
 
-          for (const booking of sortedBookings) {
+          for (const booking of filteredBookings) {
             const startMin = timeToMinutes(booking.booking_time)
             let durationMin = 45
             if (booking.service_duration) {
@@ -164,7 +164,7 @@ export function Step4DateTime({
         }
         setBookedIntervals(intervals)
 
-        // 4. GERAÇÃO DA GRADE FIXA LIMPA (De 30 em 30 min do openMin até closeMin)
+        // 4. GERAÇÃO DA GRADE FIXA LIMPA (De 30 em 30 min)
         const slots: string[] = []
         let currentMin = openMin
 
@@ -185,7 +185,7 @@ export function Step4DateTime({
     fetchScheduleAndBookings()
   }, [selectedDate, selectedBarber])
 
-  // Valida se o horário pode ser escolhido com base na duração do serviço atual
+  // Validação estrita e precisa contra conflitos
   const isSlotUnavailable = (slotTime: string) => {
     if (scheduleConfig.isClosed) return true
 
@@ -200,8 +200,9 @@ export function Step4DateTime({
     const crossesLunch = slotStartMin < scheduleConfig.lunchEndMin && slotEndMin > scheduleConfig.lunchStartMin
     if (crossesLunch) return true
 
-    // 3. Colide com algum agendamento existente
+    // 3. Colide com qualquer agendamento existente (sobreposição exata de intervalos)
     for (const booked of bookedIntervals) {
+      // Há conflito se o slot começa antes do agendamento terminar E termina depois do agendamento começar
       if (slotStartMin < booked.end && slotEndMin > booked.start) {
         return true
       }
