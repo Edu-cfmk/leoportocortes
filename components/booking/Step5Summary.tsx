@@ -44,8 +44,8 @@ export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
         {
           client_name: booking.clientName,
           client_phone: booking.clientPhone,
-          service_name: booking.service.name,
-          service_price: booking.service.price,
+          service_name: booking.service?.name,
+          service_price: booking.service?.price,
           service_duration: serviceDuration,
           barber_name: booking.barber.name,
           booking_date: booking.date,
