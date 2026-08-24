@@ -15,7 +15,7 @@ interface Step5Props {
 export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
   const [loading, setLoading] = useState(false)
 
- // Função para calcular o preço total somando os serviços selecionados
+  // Função para calcular o preço total somando os serviços selecionados
   const calculateTotal = () => {
     let totalCents = 0;
     booking.services.forEach((s) => {
@@ -29,29 +29,37 @@ export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
         if (!isNaN(num)) totalCents += num * 100;
       }
     });
-    return `R$ ${(totalCents / 100).toFixed(2).replace('.', ',')}`;
+    return totalCents;
+  };
+
+  const formattedTotal = () => {
+    return `R$ ${(calculateTotal() / 100).toFixed(2).replace('.', ',')}`;
   };
 
   const handleConfirmBooking = async () => {
     setLoading(true)
     try {
-      // Exemplo de salvamento no Supabase (ajuste conforme a estrutura da sua tabela de agendamentos)
+      // Cria uma string unindo os nomes dos serviços escolhidos (ex: "Corte Degrade, Pigmentação")
+      const servicesNames = booking.services.map((s) => s.name).join(", ");
+      const firstServiceId = booking.services.length > 0 ? booking.services[0].id : null;
+
       const { error } = await supabase.from("appointments").insert([
         {
           client_name: booking.clientName,
           client_phone: booking.clientPhone,
+          service_id: firstServiceId, // Compatibilidade com coluna antiga se houver
+          service_name: servicesNames, // Salva todos os serviços em texto
           barber_id: booking.barber?.id,
           barber_name: booking.barber?.name,
           date: booking.date,
           time: booking.time,
-          services: booking.services, // Salva o array de serviços
-          total_price: calculateTotal(),
+          total_price: calculateTotal(), // Salva em centavos ou ajuste se sua coluna for texto
         }
       ])
 
       if (error) {
         console.error("Erro ao salvar agendamento:", error)
-        alert("Erro ao realizar agendamento. Tente novamente.")
+        alert("Erro ao realizar agendamento: " + error.message)
       } else {
         onFinish()
       }
@@ -88,16 +96,21 @@ export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
           <div className="flex-1">
             <p className="text-xs text-zinc-400">Serviço(s) Escolhido(s)</p>
             <div className="space-y-1 mt-1">
-              {booking.services.map((s, idx) => (
-                <div key={idx} className="flex justify-between text-sm">
-                  <span className="text-white font-medium">{s.name}</span>
-                  <span className="text-red-400 font-semibold">{s.price}</span>
-                </div>
-              ))}
+              {booking.services.map((s, idx) => {
+                const p = s.price_in_cents 
+                  ? `R$ ${(s.price_in_cents / 100).toFixed(2).replace('.', ',')}` 
+                  : s.price;
+                return (
+                  <div key={idx} className="flex justify-between text-sm">
+                    <span className="text-white font-medium">{s.name}</span>
+                    <span className="text-red-400 font-semibold">{p}</span>
+                  </div>
+                );
+              })}
             </div>
             <div className="flex justify-between items-center pt-2 mt-2 border-t border-zinc-900 text-sm">
               <span className="font-bold text-zinc-300">Total</span>
-              <span className="font-bold text-red-500 text-base">{calculateTotal()}</span>
+              <span className="font-bold text-red-500 text-base">{formattedTotal()}</span>
             </div>
           </div>
         </div>
