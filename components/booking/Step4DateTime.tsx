@@ -1,7 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Calendar as CalendarIcon, Clock, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  ArrowLeft,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+} from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Barber, Service } from "@/types/booking"
 import { supabase } from "@/lib/supabase"
@@ -17,12 +26,188 @@ interface Step4Props {
   onBack: () => void
 }
 
+interface ScheduleConfig {
+  openMin: number
+  closeMin: number
+  lunchStartMin: number | null
+  lunchEndMin: number | null
+  isClosed: boolean
+}
+
+interface BookedInterval {
+  start: number
+  end: number
+}
+
+interface GeneratedSlot {
+  time: string
+  start: number
+  end: number
+  available: boolean
+}
+
 const MONTH_NAMES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ]
 
-const WEEKDAYS = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"]
+const WEEKDAYS = [
+  "domingo",
+  "segunda",
+  "terca",
+  "quarta",
+  "quinta",
+  "sexta",
+  "sabado",
+]
+
+/* ============================================================
+   FUNÇÕES AUXILIARES
+============================================================ */
+
+function normalizeText(value: string | null | undefined) {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+}
+
+function timeToMinutes(timeStr: string | null | undefined): number {
+  if (!timeStr) return 0
+
+  const [hours, minutes] = timeStr.split(":").map(Number)
+
+  if (
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes) ||
+    hours < 0 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return 0
+  }
+
+  return hours * 60 + minutes
+}
+
+function minutesToTime(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+    2,
+    "0"
+  )}`
+}
+
+/**
+ * Converte:
+ *
+ * "10min"       -> 10
+ * "10 min"      -> 10
+ * "45min"       -> 45
+ * "1h"          -> 60
+ * "1h 25min"    -> 85
+ * "1h25min"     -> 85
+ * "1 hora"      -> 60
+ * "1 hora 25 minutos" -> 85
+ *
+ * Também aceita número puro como minutos:
+ * "45" -> 45
+ */
+function parseDurationToMinutes(duration?: string | number | null): number {
+  if (duration === null || duration === undefined || duration === "") {
+    return 45
+  }
+
+  if (typeof duration === "number") {
+    return duration > 0 ? duration : 45
+  }
+
+  const normalized = duration
+    .toLowerCase()
+    .replace(",", ".")
+    .trim()
+
+  // Caso seja apenas "45"
+  if (/^\d+$/.test(normalized)) {
+    const value = Number(normalized)
+    return value > 0 ? value : 45
+  }
+
+  let totalMinutes = 0
+
+  // Horas
+  const hourMatch = normalized.match(/(\d+)\s*(?:h|hora|horas)/)
+
+  if (hourMatch) {
+    totalMinutes += Number(hourMatch[1]) * 60
+  }
+
+  // Minutos
+  const minuteMatch = normalized.match(
+    /(\d+)\s*(?:min|minuto|minutos)/
+  )
+
+  if (minuteMatch) {
+    totalMinutes += Number(minuteMatch[1])
+  }
+
+  return totalMinutes > 0 ? totalMinutes : 45
+}
+
+/**
+ * Fallback para agendamentos antigos que possuem
+ * service_duration = NULL.
+ *
+ * IMPORTANTE:
+ * O ideal é que os novos agendamentos sempre tenham
+ * service_duration preenchido.
+ */
+function getBookingDuration(
+  serviceDuration: string | null | undefined,
+  serviceName: string | null | undefined
+): number {
+  if (serviceDuration) {
+    return parseDurationToMinutes(serviceDuration)
+  }
+
+  const name = normalizeText(serviceName)
+
+  if (name.includes("sobrancelha")) {
+    return 10
+  }
+
+  if (name.includes("alisamento")) {
+    return 85
+  }
+
+  if (
+    name.includes("degrade") ||
+    name.includes("freestyle") ||
+    name.includes("combo")
+  ) {
+    return 60
+  }
+
+  // Fallback genérico para registros antigos
+  return 45
+}
+
+/* ============================================================
+   COMPONENTE
+============================================================ */
 
 export function Step4DateTime({
   selectedDate,
@@ -34,185 +219,449 @@ export function Step4DateTime({
   onNext,
   onBack,
 }: Step4Props) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = useMemo(() => {
+    const date = new Date()
+    date.setHours(0, 0, 0, 0)
+    return date
+  }, [])
 
   const [currentMonth, setCurrentMonth] = useState(today.getMonth())
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
-  
-  const [availableSlots, setAvailableSlots] = useState<string[]>([])
-  const [bookedIntervals, setBookedIntervals] = useState<{ start: number; end: number }[]>([])
-  const [loadingTimes, setLoadingTimes] = useState<boolean>(false)
-  const [scheduleConfig, setScheduleConfig] = useState<{ openMin: number; closeMin: number; lunchStartMin: number; lunchEndMin: number; isClosed: boolean }>({
+
+  const [bookedIntervals, setBookedIntervals] = useState<
+    BookedInterval[]
+  >([])
+
+  const [loadingTimes, setLoadingTimes] = useState(false)
+
+  const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>({
     openMin: 8 * 60,
     closeMin: 18 * 60,
-    lunchStartMin: 12 * 60,
-    lunchEndMin: 13 * 60,
-    isClosed: false
+    lunchStartMin: null,
+    lunchEndMin: null,
+    isClosed: false,
   })
 
-  const timeToMinutes = (timeStr: string) => {
-    if (!timeStr) return 0
-    const [hours, minutes] = timeStr.split(":").map(Number)
-    return hours * 60 + minutes
-  }
+  /* ==========================================================
+     DURAÇÃO DO SERVIÇO ATUAL
+  ========================================================== */
 
-  const minutesToTime = (totalMinutes: number) => {
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
-  }
+  const serviceDuration = useMemo(() => {
+    return parseDurationToMinutes(selectedService?.duration)
+  }, [selectedService?.duration])
 
-  const parseDurationToMinutes = (durationStr?: string) => {
-    if (!durationStr) return 45
-    let totalMinutes = 0
-    const hourMatch = durationStr.match(/(\d+)h/)
-    const minMatch = durationStr.match(/(\d+)min/)
-
-    if (hourMatch) totalMinutes += parseInt(hourMatch[1]) * 60
-    if (minMatch) totalMinutes += parseInt(minMatch[1])
-
-    return totalMinutes > 0 ? totalMinutes : 45
-  }
+  /* ==========================================================
+     BUSCA HORÁRIO + AGENDAMENTOS
+  ========================================================== */
 
   useEffect(() => {
+    let cancelled = false
+
     async function fetchScheduleAndBookings() {
       if (!selectedDate || !selectedBarber) {
-        setAvailableSlots([])
         setBookedIntervals([])
+        setLoadingTimes(false)
         return
       }
 
       setLoadingTimes(true)
+
       try {
-        const dateObj = new Date(selectedDate + "T00:00:00")
+        const dateObj = new Date(`${selectedDate}T00:00:00`)
         const dayIndex = dateObj.getDay()
         const dayOfWeekName = WEEKDAYS[dayIndex]
 
-        // 1. Busca horários gerais
-        const { data: generalSchedules } = await supabase
-          .from("barber_schedules")
-          .select("*")
-          .is("barber_id", null)
+        /*
+         * Buscamos as configurações gerais e do barbeiro
+         * ao mesmo tempo.
+         */
+        const [generalResult, barberResult, bookingsResult] =
+          await Promise.all([
+            supabase
+              .from("barber_schedules")
+              .select("*")
+              .is("barber_id", null),
 
-        // 2. Busca regra específica do colaborador
-        const { data: barberScheduleData } = await supabase
-          .from("barber_schedules")
-          .select("*")
-          .eq("barber_id", selectedBarber.id)
-          .ilike("day_of_week", dayOfWeekName)
-          .maybeSingle()
+            supabase
+              .from("barber_schedules")
+              .select("*")
+              .eq("barber_id", selectedBarber.id),
 
-        const generalScheduleData = generalSchedules?.find(
-          (s: any) => s.day_of_week?.toLowerCase() === dayOfWeekName.toLowerCase()
-        )
+            /*
+             * Agora filtramos direto no Supabase:
+             * somente a data e o barbeiro selecionado.
+             */
+            supabase
+              .from("bookings")
+              .select(
+                "booking_time, status, service_name, service_duration, barber_name"
+              )
+              .eq("booking_date", selectedDate)
+              .eq("barber_name", selectedBarber.name),
+          ])
 
-        let openMin = generalScheduleData?.open_time ? timeToMinutes(generalScheduleData.open_time) : 8 * 60
-        let closeMin = generalScheduleData?.close_time ? timeToMinutes(generalScheduleData.close_time) : 18 * 60
-        let isClosed = generalScheduleData?.is_open === false ? true : false
-
-        let lunchStartMin = 12 * 60
-        let lunchEndMin = 13 * 60
-
-        if (barberScheduleData) {
-          if (barberScheduleData.open_time) openMin = timeToMinutes(barberScheduleData.open_time)
-          if (barberScheduleData.close_time) closeMin = timeToMinutes(barberScheduleData.close_time)
-          if (barberScheduleData.is_open === false) isClosed = true
-          if (barberScheduleData.lunch_start) lunchStartMin = timeToMinutes(barberScheduleData.lunch_start)
-          if (barberScheduleData.lunch_end) lunchEndMin = timeToMinutes(barberScheduleData.lunch_end)
+        if (generalResult.error) {
+          throw generalResult.error
         }
 
-        setScheduleConfig({ openMin, closeMin, lunchStartMin, lunchEndMin, isClosed })
+        if (barberResult.error) {
+          throw barberResult.error
+        }
+
+        if (bookingsResult.error) {
+          throw bookingsResult.error
+        }
+
+        if (cancelled) return
+
+        /* ======================================================
+           HORÁRIO GERAL
+        ====================================================== */
+
+        const generalSchedule = (generalResult.data || []).find(
+          (schedule: any) =>
+            normalizeText(schedule.day_of_week) ===
+            normalizeText(dayOfWeekName)
+        )
+
+        /* ======================================================
+           HORÁRIO ESPECÍFICO DO BARBEIRO
+        ====================================================== */
+
+        const barberSchedule = (barberResult.data || []).find(
+          (schedule: any) =>
+            normalizeText(schedule.day_of_week) ===
+            normalizeText(dayOfWeekName)
+        )
+
+        /*
+         * Primeiro usamos o horário geral.
+         *
+         * Depois o horário específico do barbeiro sobrescreve
+         * o geral quando existir.
+         */
+
+        let openMin = generalSchedule?.open_time
+          ? timeToMinutes(generalSchedule.open_time)
+          : 8 * 60
+
+        let closeMin = generalSchedule?.close_time
+          ? timeToMinutes(generalSchedule.close_time)
+          : 18 * 60
+
+        let isClosed =
+          generalSchedule?.is_open === false
+
+        let lunchStartMin: number | null =
+          generalSchedule?.lunch_start
+            ? timeToMinutes(generalSchedule.lunch_start)
+            : null
+
+        let lunchEndMin: number | null =
+          generalSchedule?.lunch_end
+            ? timeToMinutes(generalSchedule.lunch_end)
+            : null
+
+        /* ======================================================
+           SOBRESCREVE COM CONFIGURAÇÃO DO BARBEIRO
+        ====================================================== */
+
+        if (barberSchedule) {
+          if (barberSchedule.open_time) {
+            openMin = timeToMinutes(barberSchedule.open_time)
+          }
+
+          if (barberSchedule.close_time) {
+            closeMin = timeToMinutes(barberSchedule.close_time)
+          }
+
+          if (barberSchedule.is_open !== null &&
+              barberSchedule.is_open !== undefined) {
+            isClosed = barberSchedule.is_open === false
+          }
+
+          if (barberSchedule.lunch_start) {
+            lunchStartMin = timeToMinutes(
+              barberSchedule.lunch_start
+            )
+          }
+
+          if (barberSchedule.lunch_end) {
+            lunchEndMin = timeToMinutes(
+              barberSchedule.lunch_end
+            )
+          }
+        }
+
+        /*
+         * Segurança:
+         * se o fechamento for menor ou igual à abertura,
+         * consideramos o dia fechado.
+         */
+        if (closeMin <= openMin) {
+          isClosed = true
+        }
+
+        setScheduleConfig({
+          openMin,
+          closeMin,
+          lunchStartMin,
+          lunchEndMin,
+          isClosed,
+        })
+
+        /* ======================================================
+           SE O DIA ESTIVER FECHADO
+        ====================================================== */
 
         if (isClosed) {
-          setAvailableSlots([])
+          setBookedIntervals([])
           setLoadingTimes(false)
           return
         }
 
-        // 3. Busca agendamentos garantindo tolerância a maiúsculas/minúsculas no nome do barbeiro
-        const { data: bookingsData, error: bookingError } = await supabase
-          .from("bookings")
-          .select("booking_time, status, service_name, service_duration, barber_name")
-          .eq("booking_date", selectedDate)
+        /* ======================================================
+           CONVERTE AGENDAMENTOS EM INTERVALOS
+        ====================================================== */
 
-        const intervals: { start: number; end: number }[] = []
+        const intervals: BookedInterval[] = []
 
-        if (!bookingError && bookingsData) {
-          const filteredBookings = bookingsData.filter(b => {
-            const statusLower = (b.status || "").toLowerCase()
-            const isNotCancelled = !statusLower.includes("cancel") && !statusLower.includes("cancelado")
-            const barberMatches = (b.barber_name || "").trim().toLowerCase() === (selectedBarber.name || "").trim().toLowerCase()
-            return isNotCancelled && barberMatches
-          })
+        for (const booking of bookingsResult.data || []) {
+          const status = normalizeText(booking.status)
 
-          for (const booking of filteredBookings) {
-            const startMin = timeToMinutes(booking.booking_time)
-            let durationMin = 45
-            if (booking.service_duration) {
-              durationMin = parseDurationToMinutes(booking.service_duration)
-            } else if (booking.service_name) {
-              const name = booking.service_name.toLowerCase()
-              if (name.includes("alisamento")) durationMin = 85
-              else if (name.includes("tribal")) durationMin = 90
-              else if (name.includes("degrade") || name.includes("freestyle") || name.includes("combo")) durationMin = 60
-              else if (name.includes("sobrancelha")) durationMin = 10
-            }
+          /*
+           * Cancelados não bloqueiam horário.
+           */
+          const isCancelled =
+            status.includes("cancel") ||
+            status.includes("cancelado")
 
-            intervals.push({ start: startMin, end: startMin + durationMin })
+          if (isCancelled) {
+            continue
           }
+
+          const startMin = timeToMinutes(
+            booking.booking_time
+          )
+
+          const durationMin = getBookingDuration(
+            booking.service_duration,
+            booking.service_name
+          )
+
+          intervals.push({
+            start: startMin,
+            end: startMin + durationMin,
+          })
         }
+
+        /*
+         * Ordenamos os agendamentos pelo horário inicial.
+         */
+        intervals.sort((a, b) => a.start - b.start)
+
         setBookedIntervals(intervals)
+      } catch (error) {
+        console.error(
+          "Erro ao carregar horários da barbearia:",
+          error
+        )
 
-        // 4. GERAÇÃO DA GRADE FIXA LIMPA (De 30 em 30 min)
-        const slots: string[] = []
-        let currentMin = openMin
-
-        while (currentMin < closeMin) {
-          slots.push(minutesToTime(currentMin))
-          currentMin += 30
+        if (!cancelled) {
+          setBookedIntervals([])
         }
-
-        setAvailableSlots(slots)
-
-      } catch (err) {
-        console.error("Erro inesperado ao carregar horários:", err)
       } finally {
-        setLoadingTimes(false)
+        if (!cancelled) {
+          setLoadingTimes(false)
+        }
       }
     }
 
     fetchScheduleAndBookings()
+
+    return () => {
+      cancelled = true
+    }
   }, [selectedDate, selectedBarber])
 
-  // Validação estrita e precisa contra conflitos
-  const isSlotUnavailable = (slotTime: string) => {
-    if (scheduleConfig.isClosed) return true
+  /* ==========================================================
+     GERAÇÃO INTELIGENTE DOS HORÁRIOS
+  ========================================================== */
 
-    const slotStartMin = timeToMinutes(slotTime)
-    const serviceDuration = parseDurationToMinutes(selectedService?.duration)
-    const slotEndMin = slotStartMin + serviceDuration
-
-    // 1. Passa do horário de fechamento
-    if (slotEndMin > scheduleConfig.closeMin) return true
-
-    // 2. Cruza o horário de almoço
-    const crossesLunch = slotStartMin < scheduleConfig.lunchEndMin && slotEndMin > scheduleConfig.lunchStartMin
-    if (crossesLunch) return true
-
-    // 3. Colide com qualquer agendamento existente (sobreposição exata de intervalos)
-    for (const booked of bookedIntervals) {
-      // Há conflito se o slot começa antes do agendamento terminar E termina depois do agendamento começar
-      if (slotStartMin < booked.end && slotEndMin > booked.start) {
-        return true
-      }
+  const generatedSlots = useMemo<GeneratedSlot[]>(() => {
+    if (
+      !selectedDate ||
+      !selectedBarber ||
+      scheduleConfig.isClosed ||
+      serviceDuration <= 0
+    ) {
+      return []
     }
 
-    return false
-  }
+    const slots: GeneratedSlot[] = []
 
-  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+    let currentMin = scheduleConfig.openMin
+
+    /*
+     * Proteção contra loop infinito.
+     */
+    let safetyCounter = 0
+
+    while (
+      currentMin < scheduleConfig.closeMin &&
+      safetyCounter < 1000
+    ) {
+      safetyCounter++
+
+      const slotStart = currentMin
+      const slotEnd = slotStart + serviceDuration
+
+      /*
+       * O serviço precisa terminar antes ou exatamente
+       * no fechamento.
+       */
+      if (slotEnd > scheduleConfig.closeMin) {
+        break
+      }
+
+      let blockingEnd: number | null = null
+
+      /* ======================================================
+         ALMOÇO
+      ====================================================== */
+
+      if (
+        scheduleConfig.lunchStartMin !== null &&
+        scheduleConfig.lunchEndMin !== null
+      ) {
+        const crossesLunch =
+          slotStart < scheduleConfig.lunchEndMin &&
+          slotEnd > scheduleConfig.lunchStartMin
+
+        if (crossesLunch) {
+          blockingEnd = scheduleConfig.lunchEndMin
+        }
+      }
+
+      /* ======================================================
+         AGENDAMENTOS EXISTENTES
+      ====================================================== */
+
+      for (const booked of bookedIntervals) {
+        /*
+         * Sobreposição real de intervalos:
+         *
+         * início do novo < fim do antigo
+         * E
+         * fim do novo > início do antigo
+         */
+        const overlaps =
+          slotStart < booked.end &&
+          slotEnd > booked.start
+
+        if (overlaps) {
+          /*
+           * Se houver mais de um bloqueio, pulamos
+           * para o maior final.
+           */
+          blockingEnd = Math.max(
+            blockingEnd ?? 0,
+            booked.end
+          )
+        }
+      }
+
+      /* ======================================================
+         HORÁRIO BLOQUEADO
+      ====================================================== */
+
+      if (blockingEnd !== null) {
+        /*
+         * Mostramos o horário como bloqueado.
+         *
+         * Depois pulamos EXATAMENTE para o fim
+         * do bloqueio.
+         */
+        slots.push({
+          time: minutesToTime(slotStart),
+          start: slotStart,
+          end: slotEnd,
+          available: false,
+        })
+
+        currentMin = blockingEnd
+        continue
+      }
+
+      /* ======================================================
+         HORÁRIO LIVRE
+      ====================================================== */
+
+      slots.push({
+        time: minutesToTime(slotStart),
+        start: slotStart,
+        end: slotEnd,
+        available: true,
+      })
+
+      /*
+       * Aqui está a principal diferença do seu código antigo:
+       *
+       * NÃO fazemos:
+       *
+       * currentMin += 30
+       *
+       * Fazemos:
+       *
+       * próximo horário = horário atual + duração do serviço
+       */
+      currentMin = slotEnd
+    }
+
+    return slots
+  }, [
+    selectedDate,
+    selectedBarber,
+    scheduleConfig,
+    bookedIntervals,
+    serviceDuration,
+  ])
+
+  /* ==========================================================
+     LIMPA HORÁRIO SE O SERVIÇO MUDAR
+  ========================================================== */
+
+  useEffect(() => {
+    if (!selectedTime) return
+
+    const selectedSlot = generatedSlots.find(
+      (slot) => slot.time === selectedTime
+    )
+
+    /*
+     * Se o cliente mudou o serviço e o horário anterior
+     * deixou de ser válido, limpamos a seleção.
+     */
+    if (!selectedSlot || !selectedSlot.available) {
+      onSelectTime("")
+    }
+  }, [generatedSlots, selectedTime, onSelectTime])
+
+  /* ==========================================================
+     CALENDÁRIO
+  ========================================================== */
+
+  const firstDayOfMonth = new Date(
+    currentYear,
+    currentMonth,
+    1
+  ).getDay()
+
+  const daysInMonth = new Date(
+    currentYear,
+    currentMonth + 1,
+    0
+  ).getDate()
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -233,26 +682,52 @@ export function Step4DateTime({
   }
 
   const handleSelectDay = (day: number) => {
-    const formattedMonth = String(currentMonth + 1).padStart(2, "0")
+    const formattedMonth = String(
+      currentMonth + 1
+    ).padStart(2, "0")
+
     const formattedDay = String(day).padStart(2, "0")
-    const dateStr = `${currentYear}-${formattedMonth}-${formattedDay}`
+
+    const dateStr =
+      `${currentYear}-${formattedMonth}-${formattedDay}`
+
     onSelectDate(dateStr)
     onSelectTime("")
   }
 
+  /* ==========================================================
+     RENDER
+  ========================================================== */
+
   return (
     <div className="space-y-6">
+
+      {/* ======================================================
+          TÍTULO
+      ====================================================== */}
+
       <div className="flex items-center gap-2 text-red-500 font-semibold">
         <CalendarIcon className="w-5 h-5" />
-        <h2 className="text-lg text-white">Passo 4: Data e Horário</h2>
+
+        <h2 className="text-lg text-white">
+          Passo 4: Data e Horário
+        </h2>
       </div>
 
+      {/* ======================================================
+          CALENDÁRIO
+      ====================================================== */}
+
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
+
         <div className="flex items-center justify-between">
+
           <span className="text-sm font-bold text-white capitalize">
             {MONTH_NAMES[currentMonth]} {currentYear}
           </span>
+
           <div className="flex gap-1">
+
             <button
               type="button"
               onClick={handlePrevMonth}
@@ -260,6 +735,7 @@ export function Step4DateTime({
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
+
             <button
               type="button"
               onClick={handleNextMonth}
@@ -267,30 +743,63 @@ export function Step4DateTime({
             >
               <ChevronRight className="w-4 h-4" />
             </button>
+
           </div>
         </div>
 
+        {/* DIAS DA SEMANA */}
+
         <div className="grid grid-cols-7 text-center text-xs font-semibold text-zinc-500">
           {WEEKDAYS.map((day) => (
-            <div key={day} className="py-1 uppercase">{day.slice(0, 3)}</div>
+            <div
+              key={day}
+              className="py-1 uppercase"
+            >
+              {day.slice(0, 3)}
+            </div>
           ))}
         </div>
 
+        {/* DIAS */}
+
         <div className="grid grid-cols-7 gap-1 text-center text-sm">
-          {Array.from({ length: firstDayOfMonth }).map((_, index) => (
+
+          {Array.from({
+            length: firstDayOfMonth,
+          }).map((_, index) => (
             <div key={`empty-${index}`} />
           ))}
 
-          {Array.from({ length: daysInMonth }).map((_, index) => {
+          {Array.from({
+            length: daysInMonth,
+          }).map((_, index) => {
+
             const day = index + 1
-            const cellDate = new Date(currentYear, currentMonth, day)
+
+            const cellDate = new Date(
+              currentYear,
+              currentMonth,
+              day
+            )
+
             cellDate.setHours(0, 0, 0, 0)
 
             const isPast = cellDate < today
-            const formattedMonth = String(currentMonth + 1).padStart(2, "0")
-            const formattedDay = String(day).padStart(2, "0")
-            const dateStr = `${currentYear}-${formattedMonth}-${formattedDay}`
-            const isSelected = selectedDate === dateStr
+
+            const formattedMonth = String(
+              currentMonth + 1
+            ).padStart(2, "0")
+
+            const formattedDay = String(day).padStart(
+              2,
+              "0"
+            )
+
+            const dateStr =
+              `${currentYear}-${formattedMonth}-${formattedDay}`
+
+            const isSelected =
+              selectedDate === dateStr
 
             return (
               <button
@@ -313,38 +822,96 @@ export function Step4DateTime({
         </div>
       </div>
 
+      {/* ======================================================
+          HORÁRIOS
+      ====================================================== */}
+
       {selectedDate ? (
+
         <div className="space-y-2 pt-2">
+
           <label className="text-xs font-medium text-zinc-300 flex items-center justify-between">
+
             <span className="flex items-center gap-1.5">
+
               <Clock className="w-4 h-4 text-zinc-400" />
-              Horários para {new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR")}:
+
+              Horários para{" "}
+              {new Date(
+                `${selectedDate}T00:00:00`
+              ).toLocaleDateString("pt-BR")}:
+
             </span>
+
             {selectedBarber && (
-              <span className="text-red-400 font-semibold">Profissional: {selectedBarber.name}</span>
+              <span className="text-red-400 font-semibold">
+                Profissional: {selectedBarber.name}
+              </span>
             )}
+
           </label>
 
-          {loadingTimes ? (
-            <div className="flex justify-center items-center py-6">
-              <Loader2 className="w-5 h-5 animate-spin text-red-500" />
+          {/* ==================================================
+              SERVIÇO SELECIONADO
+          ================================================== */}
+
+          {selectedService && (
+            <div className="text-xs text-zinc-500">
+              Serviço:{" "}
+              <span className="text-zinc-300 font-semibold">
+                {selectedService.name}
+              </span>{" "}
+              — duração:{" "}
+              <span className="text-red-400 font-semibold">
+                {selectedService.duration}
+              </span>
             </div>
-          ) : availableSlots.length === 0 ? (
+          )}
+
+          {/* ==================================================
+              LOADING
+          ================================================== */}
+
+          {loadingTimes ? (
+
+            <div className="flex justify-center items-center py-6">
+
+              <Loader2 className="w-5 h-5 animate-spin text-red-500" />
+
+            </div>
+
+          ) : scheduleConfig.isClosed ? (
+
             <p className="text-xs text-zinc-500 text-center py-6 bg-zinc-950/50 rounded-lg border border-zinc-800/50">
-              Não há horários disponíveis ou o profissional está fechado neste dia.
+              O profissional não atende neste dia.
             </p>
+
+          ) : generatedSlots.length === 0 ? (
+
+            <p className="text-xs text-zinc-500 text-center py-6 bg-zinc-950/50 rounded-lg border border-zinc-800/50">
+              Não há horários disponíveis para este serviço neste dia.
+            </p>
+
           ) : (
+
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {availableSlots.map((time) => {
-                const isSelected = selectedTime === time
-                const isUnavailable = isSlotUnavailable(time)
+
+              {generatedSlots.map((slot) => {
+
+                const isSelected =
+                  selectedTime === slot.time
+
+                const isUnavailable =
+                  !slot.available
 
                 return (
                   <button
-                    key={time}
+                    key={`${slot.time}-${slot.start}`}
                     type="button"
                     disabled={isUnavailable}
-                    onClick={() => onSelectTime(time)}
+                    onClick={() =>
+                      onSelectTime(slot.time)
+                    }
                     className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
                       isUnavailable
                         ? "bg-zinc-900/50 border-zinc-900 text-zinc-600 cursor-not-allowed line-through"
@@ -353,35 +920,54 @@ export function Step4DateTime({
                         : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800"
                     }`}
                   >
-                    {time}
+                    {slot.time}
                   </button>
                 )
               })}
+
             </div>
           )}
+
         </div>
+
       ) : (
+
         <p className="text-xs text-zinc-500 text-center py-3 bg-zinc-950/50 rounded-lg border border-zinc-800/50">
           Selecione um dia no calendário acima para visualizar os horários.
         </p>
+
       )}
 
+      {/* ======================================================
+          NAVEGAÇÃO
+      ====================================================== */}
+
       <div className="flex gap-3 pt-4 border-t border-zinc-800">
+
         <Button
           variant="outline"
           onClick={onBack}
           className="border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Voltar
         </Button>
+
         <Button
           onClick={onNext}
-          disabled={!selectedDate || !selectedTime}
+          disabled={
+            !selectedDate ||
+            !selectedTime
+          }
           className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold disabled:opacity-50"
         >
-          Revisar Agendamento <ArrowRight className="w-4 h-4 ml-2" />
+          Revisar Agendamento
+
+          <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
+
       </div>
+
     </div>
   )
 }
