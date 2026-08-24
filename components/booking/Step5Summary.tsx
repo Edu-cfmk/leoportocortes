@@ -43,7 +43,7 @@ export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
       const servicesNames = booking.services.map((s) => s.name).join(", ");
       const firstServiceId = booking.services.length > 0 ? booking.services[0].id : null;
 
-      const { error } = await supabase.from("appointments").insert([
+      const { error } = await supabase.from("agendamentos").insert([
         {
           client_name: booking.clientName,
           client_phone: booking.clientPhone,
