@@ -12,6 +12,7 @@ import {
   Users,
   Clock,
   Shield,
+  BarChart3,
 } from "lucide-react";
 
 import { AdminLogin } from "./components/AdminLogin";
@@ -20,6 +21,7 @@ import { ServicesTab } from "./components/ServicesTab";
 import { SettingsTab, DaySchedule } from "./components/SettingsTab";
 import { BarbersTab } from "./components/BarbersTab";
 import { PermissionsTab } from "./components/PermissionsTab";
+import { ReportsTab } from "./components/ReportsTab";
 
 const defaultSchedules: DaySchedule[] = [
   { dayOfWeek: "segunda", label: "Segunda-feira", isOpen: true, openTime: "08:00", closeTime: "19:00", lunchStart: "12:00", lunchEnd: "13:00" },
@@ -41,7 +43,7 @@ export default function AdminPage() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState<
-    "bookings" | "services" | "barbers" | "settings" | "permissions"
+    "bookings" | "services" | "barbers" | "settings" | "permissions" | "reports"
   >("bookings");
 
   const [bookings, setBookings] = useState<any[]>([]);
@@ -73,12 +75,14 @@ export default function AdminPage() {
   useEffect(() => {
     if (session) {
       fetchBarbers();
+      // Sempre carrega os agendamentos ao iniciar para alimentar os relatórios em qualquer aba
+      fetchAllBookingsForReports();
     }
   }, [session]);
 
   useEffect(() => {
     if (session) {
-      if (activeTab === "bookings") fetchBookings();
+      if (activeTab === "bookings" || activeTab === "reports") fetchAllBookingsForReports();
       if (activeTab === "services") fetchServices();
       if (activeTab === "settings") fetchSchedulesForContext();
     }
@@ -91,8 +95,6 @@ export default function AdminPage() {
 
   const fetchSchedulesForContext = async () => {
     const targetId = selectedBarber === "geral" ? null : selectedBarber;
-    
-    // Converte para null explicitamente se for string vazia ou "geral"
     const queryId = (!targetId || targetId === "geral") ? null : targetId;
 
     let query = supabase.from("barber_schedules").select("*");
@@ -127,7 +129,6 @@ export default function AdminPage() {
       });
       setSchedules(updated);
     } else {
-      // Se não houver salvo no banco ainda para este colaborador, carrega os padrões
       setSchedules(defaultSchedules);
     }
   };
@@ -177,6 +178,21 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  // Função para buscar todos os agendamentos (necessário para relatórios completos)
+  const fetchAllBookingsForReports = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .order("booking_date", { ascending: false })
+      .order("booking_time", { ascending: false });
+
+    if (!error) {
+      setBookings(data || []);
+    }
+    setLoading(false);
+  };
+
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     const { error } = await supabase
       .from("bookings")
@@ -186,96 +202,13 @@ export default function AdminPage() {
     if (error) {
       alert("Erro ao atualizar: " + error.message);
     } else {
-      fetchBookings();
+      fetchAllBookingsForReports();
     }
   };
 
   const fetchServices = async () => {
     const { data } = await supabase.from("services").select("*").order("name");
     setServices(data || []);
-  };
-
-  const handleAddService = async () => {
-    if (!newServiceName || !newServicePrice)
-      return alert("Preencha o nome e preço do serviço.");
-
-    const firstBarberId = barbers && barbers.length > 0 ? barbers[0].id : null;
-
-    if (!firstBarberId) {
-      alert("Erro: Cadastre um colaborador na aba 'Colaboradores' primeiro.");
-      return;
-    }
-
-    const numericPrice = Number(newServicePrice.replace(/\D/g, "")) || 0;
-    const now = new Date().toISOString();
-
-    const { error } = await supabase.from("services").insert([
-      {
-        id: crypto.randomUUID(),
-        name: newServiceName,
-        price_in_cents: numericPrice,
-        barber_id: firstBarberId,
-        created_at: now,
-        updated_at: now,
-      },
-    ]);
-
-    if (error) {
-      alert("Erro ao cadastrar: " + error.message);
-      return;
-    }
-
-    setNewServiceName("");
-    setNewServicePrice("");
-    fetchServices();
-    alert("Serviço cadastrado com sucesso!");
-  };
-
-  const handleDeleteService = async (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este serviço?")) {
-      const { error } = await supabase.from("services").delete().eq("id", id);
-      if (error) {
-        alert("Erro ao excluir: " + error.message);
-        return;
-      }
-      fetchServices();
-    }
-  };
-
- const handleSaveSettings = async () => {
-    const targetBarberId = selectedBarber === "geral" ? null : selectedBarber;
-
-    // Prepara os dados para salvar todos de uma vez
-    const payload = schedules.map((item) => ({
-      barber_id: targetBarberId,
-      day_of_week: item.dayOfWeek,
-      is_open: item.isOpen,
-      open_time: item.openTime,
-      close_time: item.closeTime,
-      lunch_start: targetBarberId !== null ? item.lunchStart : null,
-      lunch_end: targetBarberId !== null ? item.lunchEnd : null,
-    }));
-
-    // Se a sua tabela tiver uma Unique Constraint em (barber_id, day_of_week) 
-    // ou se o barber_id for NULL tratado com coalesce, o upsert substitui perfeitamente.
-    // Para garantir que o delete limpe antes com precisão cirúrgica:
-    
-    if (targetBarberId === null) {
-      await supabase.from("barber_schedules").delete().is("barber_id", null);
-    } else {
-      await supabase.from("barber_schedules").delete().eq("barber_id", targetBarberId);
-    }
-
-    const { error } = await supabase.from("barber_schedules").insert(payload);
-
-    if (error) {
-      console.error("Erro ao salvar horários:", error.message);
-      alert("Erro ao salvar: " + error.message);
-      return;
-    }
-
-    alert("Horários salvos com sucesso!");
-    fetchSchedulesForContext();
   };
 
   const handleLogout = () => {
@@ -330,6 +263,7 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* Abas de Navegação */}
         <div className="flex items-center gap-2 border-b border-zinc-800 pb-3 overflow-x-auto">
           <button
             onClick={() => setActiveTab("bookings")}
@@ -355,6 +289,12 @@ export default function AdminPage() {
           >
             <Clock className="w-4 h-4" /> Horários
           </button>
+          <button
+            onClick={() => setActiveTab("reports")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "reports" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+          >
+            <BarChart3 className="w-4 h-4" /> Relatórios
+          </button>
 
           {hasFullAccess && (
             <button
@@ -366,11 +306,12 @@ export default function AdminPage() {
           )}
         </div>
 
+        {/* Conteúdo das Abas */}
         {activeTab === "bookings" && (
           <BookingsTab
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
-            fetchBookings={fetchBookings}
+            fetchBookings={fetchAllBookingsForReports}
             loading={loading}
             bookings={bookings}
             handleUpdateStatus={handleUpdateStatus}
@@ -382,12 +323,40 @@ export default function AdminPage() {
           <SettingsTab
             schedules={schedules}
             setSchedules={setSchedules}
-            handleSaveSettings={handleSaveSettings}
+            handleSaveSettings={async () => {
+              const targetBarberId = selectedBarber === "geral" ? null : selectedBarber;
+              const payload = schedules.map((item) => ({
+                barber_id: targetBarberId,
+                day_of_week: item.dayOfWeek,
+                is_open: item.isOpen,
+                open_time: item.openTime,
+                close_time: item.closeTime,
+                lunch_start: targetBarberId !== null ? item.lunchStart : null,
+                lunch_end: targetBarberId !== null ? item.lunchEnd : null,
+              }));
+
+              if (targetBarberId === null) {
+                await supabase.from("barber_schedules").delete().is("barber_id", null);
+              } else {
+                await supabase.from("barber_schedules").delete().eq("barber_id", targetBarberId);
+              }
+
+              const { error } = await supabase.from("barber_schedules").insert(payload);
+
+              if (error) {
+                alert("Erro ao salvar: " + error.message);
+                return;
+              }
+
+              alert("Horários salvos com sucesso!");
+              fetchSchedulesForContext();
+            }}
             barbers={barbers}
             selectedBarber={selectedBarber}
             setSelectedBarber={setSelectedBarber}
           />
         )}
+        {activeTab === "reports" && <ReportsTab bookings={bookings} />}
         {activeTab === "permissions" && hasFullAccess && <PermissionsTab />}
       </div>
     </div>
