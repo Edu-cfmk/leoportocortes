@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { BarChart3, DollarSign, Scissors, Users, CalendarCheck, TrendingUp, Filter } from "lucide-react"
+import { BarChart3, DollarSign, Scissors, Users, CalendarCheck, TrendingUp, Filter, AlertCircle, Wallet } from "lucide-react"
 
 interface ReportsTabProps {
   bookings: any[]
@@ -34,6 +34,7 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
     const list = filteredBookings
     const validBookings = list.filter(b => b.status !== "canceled")
     const completedBookings = list.filter(b => b.status === "completed")
+    const canceledBookings = list.filter(b => b.status === "canceled")
 
     // Faturamento Total (Válidos)
     let totalRevenue = 0
@@ -54,6 +55,9 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
         if (!isNaN(val)) completedRevenue += val
       }
     })
+
+    // Ticket Médio (Faturamento Total dividido pelo número de agendamentos válidos)
+    const ticketMedio = validBookings.length > 0 ? totalRevenue / validBookings.length : 0
 
     // Agrupamento por Barbeiro
     const byBarber: { [key: string]: { count: number, revenue: number } } = {}
@@ -89,7 +93,6 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
       byService[service].revenue += val
     })
 
-    // Ordenar serviços mais vendidos
     const topServices = Object.entries(byService)
       .sort((a, b) => b[1].count - a[1].count)
 
@@ -97,8 +100,10 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
       totalBookings: list.length,
       validCount: validBookings.length,
       completedCount: completedBookings.length,
+      canceledCount: canceledBookings.length,
       totalRevenue,
       completedRevenue,
+      ticketMedio,
       byBarber,
       topServices
     }
@@ -136,8 +141,8 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
         </div>
       </div>
 
-      {/* Cards de Métricas Principais */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Cards de Métricas Principais (6 cards organizados) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2">
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-xs font-medium uppercase">Faturamento Estimado</span>
@@ -146,7 +151,7 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
           <p className="text-2xl font-extrabold text-white">
             R$ {stats.totalRevenue.toFixed(2).replace('.', ',')}
           </p>
-          <p className="text-[11px] text-zinc-500">Baseado nos agendamentos do período</p>
+          <p className="text-[11px] text-zinc-500">Baseado nos agendamentos ativos</p>
         </div>
 
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2">
@@ -158,6 +163,17 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
             R$ {stats.completedRevenue.toFixed(2).replace('.', ',')}
           </p>
           <p className="text-[11px] text-zinc-500">Apenas serviços finalizados</p>
+        </div>
+
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2">
+          <div className="flex items-center justify-between text-zinc-400">
+            <span className="text-xs font-medium uppercase">Ticket Médio</span>
+            <Wallet className="w-4 h-4 text-amber-500" />
+          </div>
+          <p className="text-2xl font-extrabold text-white">
+            R$ {stats.ticketMedio.toFixed(2).replace('.', ',')}
+          </p>
+          <p className="text-[11px] text-zinc-500">Média gasta por atendimento</p>
         </div>
 
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2">
@@ -176,6 +192,15 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
           </div>
           <p className="text-2xl font-extrabold text-white">{stats.completedCount}</p>
           <p className="text-[11px] text-zinc-500">Finalizados com sucesso</p>
+        </div>
+
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2">
+          <div className="flex items-center justify-between text-zinc-400">
+            <span className="text-xs font-medium uppercase">Cancelados / Desistências</span>
+            <AlertCircle className="w-4 h-4 text-rose-500" />
+          </div>
+          <p className="text-2xl font-extrabold text-rose-400">{stats.canceledCount}</p>
+          <p className="text-[11px] text-zinc-500">Agendamentos cancelados</p>
         </div>
       </div>
 
