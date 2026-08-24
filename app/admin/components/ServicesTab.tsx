@@ -10,6 +10,7 @@ export function ServicesTab() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("01:00"); // Padrão 1 hora
+  const [category, setCategory] = useState("Cortes"); // Categoria padrão
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -52,6 +53,7 @@ export function ServicesTab() {
           description,
           price_in_cents: numericPrice,
           duration: formattedDuration,
+          category,
           updated_at: new Date().toISOString()
         })
         .eq("id", editingId);
@@ -80,6 +82,7 @@ export function ServicesTab() {
           description,
           price_in_cents: numericPrice,
           duration: formattedDuration,
+          category,
           barber_id: firstBarberId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -93,6 +96,7 @@ export function ServicesTab() {
         setDescription("");
         setPrice("");
         setDuration("01:00");
+        setCategory("Cortes");
         fetchServices();
         alert("Serviço cadastrado com sucesso!");
       }
@@ -105,6 +109,7 @@ export function ServicesTab() {
     setName(service.name);
     setDescription(service.description || "");
     setDuration("01:00"); // Valor padrão caso venha vazio
+    setCategory(service.category || "Cortes");
     setPrice((service.price_in_cents / 100).toFixed(2).replace(".", ","));
   };
 
@@ -114,6 +119,7 @@ export function ServicesTab() {
     setDescription("");
     setPrice("");
     setDuration("01:00");
+    setCategory("Cortes");
   };
 
   const handleDeleteService = async (id: string) => {
@@ -136,7 +142,7 @@ export function ServicesTab() {
         </h2>
 
         <form onSubmit={handleSaveService} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <input
               type="text"
               placeholder="Nome (ex: Corte Degrade)"
@@ -151,6 +157,17 @@ export function ServicesTab() {
               onChange={(e) => setDescription(e.target.value)}
               className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
             />
+            <div className="flex flex-col">
+              <label className="text-xs text-zinc-400 mb-1">Categoria</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="bg-black border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-600"
+              >
+                <option value="Cortes">Cortes</option>
+                <option value="Serviços Adicionais">Serviços Adicionais</option>
+              </select>
+            </div>
             <div className="flex flex-col">
               <label className="text-xs text-zinc-400 mb-1">Duração (Horas:Minutos)</label>
               <input
@@ -208,7 +225,12 @@ export function ServicesTab() {
                 className="flex items-center justify-between bg-black border border-zinc-800 p-4 rounded-lg"
               >
                 <div>
-                  <h4 className="font-bold text-white text-sm">{service.name}</h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-white text-sm">{service.name}</h4>
+                    <span className="text-[10px] bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-full font-medium">
+                      {service.category || "Cortes"}
+                    </span>
+                  </div>
                   {service.description && (
                     <p className="text-xs text-zinc-400 mt-0.5">{service.description}</p>
                   )}
