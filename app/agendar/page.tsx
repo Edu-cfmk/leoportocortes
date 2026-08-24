@@ -20,7 +20,7 @@ export default function AgendarPage() {
   const [booking, setBooking] = useState<BookingData>({
     clientName: "",
     clientPhone: "",
-    service: null,
+    services: [], // Array de serviços selecionados
     barber: null,
     date: "",
     time: "",
@@ -32,7 +32,7 @@ export default function AgendarPage() {
     setBooking({
       clientName: "",
       clientPhone: "",
-      service: null,
+      services: [],
       barber: null,
       date: "",
       time: "",
@@ -92,10 +92,16 @@ export default function AgendarPage() {
                 <strong className="text-zinc-100">Telefone:</strong>{" "}
                 {booking.clientPhone}
               </p>
-              <p>
-                <strong className="text-zinc-100">Serviço:</strong>{" "}
-                {booking.service?.name} ({booking.service?.price})
-              </p>
+              <div>
+                <strong className="text-zinc-100">Serviços:</strong>
+                <ul className="list-disc list-inside mt-1 text-zinc-300">
+                  {booking.services.map((s, idx) => (
+                    <li key={idx}>
+                      {s.name} ({s.price})
+                    </li>
+                  ))}
+                </ul>
+              </div>
               <p>
                 <strong className="text-zinc-100">Barbeiro:</strong>{" "}
                 {booking.barber?.name}
@@ -146,9 +152,9 @@ export default function AgendarPage() {
 
             {step === 2 && (
               <Step2Services
-                selectedService={booking.service}
-                onSelectService={(val) =>
-                  setBooking((prev) => ({ ...prev, service: val }))
+                selectedServices={booking.services}
+                onSelectServices={(val) =>
+                  setBooking((prev) => ({ ...prev, services: val }))
                 }
                 onNext={() => setStep(3)}
                 onBack={() => setStep(1)}
@@ -171,7 +177,7 @@ export default function AgendarPage() {
                 selectedDate={booking.date}
                 selectedTime={booking.time}
                 selectedBarber={booking.barber}
-                selectedService={booking.service}
+                selectedServices={booking.services}
                 onSelectDate={(date) =>
                   setBooking((prev) => ({ ...prev, date }))
                 }

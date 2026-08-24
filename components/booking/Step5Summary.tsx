@@ -1,140 +1,150 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { Check, ArrowLeft, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { BookingData } from "@/types/booking";
-import { supabase } from "@/lib/supabase";
+import React, { useState } from "react"
+import { ArrowLeft, Check, Calendar, Clock, User, Scissors, DollarSign, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { BookingData } from "@/types/booking"
+import { supabase } from "@/lib/supabase"
 
 interface Step5Props {
-  booking: BookingData;
-  onFinish: () => void;
-  onBack: () => void;
+  booking: BookingData
+  onFinish: () => void
+  onBack: () => void
 }
 
 export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false)
 
-  const handleConfirm = async () => {
+  // Função para calcular o preço total somando os serviços selecionados
+  const calculateTotal = () => {
+    let totalCents = 0
+    booking.services.forEach(s => {
+      // Tenta extrair o valor numérico se estiver no formato "R$ XX,XX" ou já for número
+      if (typeof s.price === 'string') {
+        const cleanPrice = s.price.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.')
+        const num = parseFloat(cleanPrice)
+        if (!isNaN(num)) totalCents += num * 100
+      }
+    })
+    return `R$ ${(totalCents / 100).toFixed(2).replace('.', ',')}`
+  }
+
+  const handleConfirmBooking = async () => {
+    setLoading(true)
     try {
-      setLoading(true);
-
-      const serviceDuration = booking.service?.duration;
-
-      if (!serviceDuration) {
-        alert(
-          "Não foi possível identificar a duração do serviço. Volte e selecione o serviço novamente."
-        );
-        return;
-      }
-
-      if (!booking.barber?.name) {
-        alert(
-          "Não foi possível identificar o profissional. Volte e selecione o profissional novamente."
-        );
-        return;
-      }
-
-      if (!booking.date || !booking.time) {
-        alert("Selecione a data e o horário antes de confirmar.");
-        return;
-      }
-
-      const { error } = await supabase.from("bookings").insert([
+      // Exemplo de salvamento no Supabase (ajuste conforme a estrutura da sua tabela de agendamentos)
+      const { error } = await supabase.from("appointments").insert([
         {
           client_name: booking.clientName,
           client_phone: booking.clientPhone,
-          service_name: booking.service?.name,
-          service_price: booking.service?.price,
-          service_duration: serviceDuration,
-          barber_name: booking.barber.name,
-          booking_date: booking.date,
-          booking_time: booking.time,
-          status: "pending",
-        },
-      ]);
+          barber_id: booking.barber?.id,
+          barber_name: booking.barber?.name,
+          date: booking.date,
+          time: booking.time,
+          services: booking.services, // Salva o array de serviços
+          total_price: calculateTotal(),
+        }
+      ])
 
       if (error) {
-        console.error("Erro ao salvar no Supabase:", error);
-        alert("Ocorreu um erro ao salvar o agendamento. Tente novamente.");
-        return;
+        console.error("Erro ao salvar agendamento:", error)
+        alert("Erro ao realizar agendamento. Tente novamente.")
+      } else {
+        onFinish()
       }
-
-      onFinish();
     } catch (err) {
-      console.error("Erro inesperado ao processar agendamento:", err);
-      alert("Erro inesperado ao processar agendamento.");
+      console.error("Erro inesperado:", err)
+      alert("Erro inesperado ao salvar.")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 text-red-500 font-semibold">
-        <Check className="w-5 h-5" />
-        <h2 className="text-lg text-white">Passo 5: Revisão do Agendamento</h2>
+      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+        <Check className="w-5 h-5 text-red-500" /> Passo 5: Resumo do Agendamento
+      </h3>
+
+      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 space-y-4">
+        {/* Cliente */}
+        <div className="flex items-start gap-3">
+          <User className="w-5 h-5 text-red-500 mt-0.5" />
+          <div>
+            <p className="text-xs text-zinc-400">Cliente</p>
+            <p className="font-semibold text-white">{booking.clientName}</p>
+            <p className="text-xs text-zinc-400">{booking.clientPhone}</p>
+          </div>
+        </div>
+
+        <hr className="border-zinc-800" />
+
+        {/* Serviços */}
+        <div className="flex items-start gap-3">
+          <Scissors className="w-5 h-5 text-red-500 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-xs text-zinc-400">Serviço(s) Escolhido(s)</p>
+            <div className="space-y-1 mt-1">
+              {booking.services.map((s, idx) => (
+                <div key={idx} className="flex justify-between text-sm">
+                  <span className="text-white font-medium">{s.name}</span>
+                  <span className="text-red-400 font-semibold">{s.price}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between items-center pt-2 mt-2 border-t border-zinc-900 text-sm">
+              <span className="font-bold text-zinc-300">Total</span>
+              <span className="font-bold text-red-500 text-base">{calculateTotal()}</span>
+            </div>
+          </div>
+        </div>
+
+        <hr className="border-zinc-800" />
+
+        {/* Barbeiro */}
+        <div className="flex items-start gap-3">
+          <User className="w-5 h-5 text-red-500 mt-0.5" />
+          <div>
+            <p className="text-xs text-zinc-400">Barbeiro</p>
+            <p className="font-semibold text-white">{booking.barber?.name || "Qualquer profissional"}</p>
+          </div>
+        </div>
+
+        <hr className="border-zinc-800" />
+
+        {/* Data e Hora */}
+        <div className="flex items-start gap-3">
+          <Calendar className="w-5 h-5 text-red-500 mt-0.5" />
+          <div>
+            <p className="text-xs text-zinc-400">Data e Horário</p>
+            <p className="font-semibold text-white flex items-center gap-2 mt-0.5">
+              <span>{booking.date ? new Date(booking.date + "T00:00:00").toLocaleDateString("pt-BR") : ""}</span>
+              <span className="text-zinc-500">|</span>
+              <span className="flex items-center gap-1 text-red-400">
+                <Clock className="w-3.5 h-3.5" /> {booking.time}
+              </span>
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4 text-sm text-zinc-300">
-        <div className="flex justify-between border-b border-zinc-900 pb-2">
-          <span className="text-zinc-500">Cliente:</span>
-          <span className="font-medium text-white">{booking.clientName}</span>
-        </div>
-        <div className="flex justify-between border-b border-zinc-900 pb-2">
-          <span className="text-zinc-500">Telefone:</span>
-          <span className="font-medium text-white">{booking.clientPhone}</span>
-        </div>
-        <div className="flex justify-between border-b border-zinc-900 pb-2">
-          <span className="text-zinc-500">Serviço:</span>
-          <span className="font-medium text-white">{booking.service?.name}</span>
-        </div>
-        <div className="flex justify-between border-b border-zinc-900 pb-2">
-          <span className="text-zinc-500">Valor:</span>
-          <span className="font-medium text-white">R$ {booking.service?.price}</span>
-        </div>
-        <div className="flex justify-between border-b border-zinc-900 pb-2">
-          <span className="text-zinc-500">Profissional:</span>
-          <span className="font-medium text-white">{booking.barber?.name}</span>
-        </div>
-        <div className="flex justify-between border-b border-zinc-900 pb-2">
-          <span className="text-zinc-500">Data:</span>
-          <span className="font-medium text-white">
-            {booking.date ? new Date(`${booking.date}T00:00:00`).toLocaleDateString("pt-BR") : ""}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-zinc-500">Horário:</span>
-          <span className="font-medium text-red-400">{booking.time}</span>
-        </div>
-      </div>
-
-      <div className="flex gap-3 pt-4 border-t border-zinc-800">
-        <Button
-          variant="outline"
+      <div className="flex gap-2 pt-2">
+        <Button 
+          variant="outline" 
           onClick={onBack}
           disabled={loading}
-          className="border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+          className="border-zinc-800 text-zinc-300 hover:bg-zinc-800 flex items-center gap-1"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar
+          <ArrowLeft className="w-4 h-4" /> Voltar
         </Button>
-
-        <Button
-          onClick={handleConfirm}
+        <Button 
+          onClick={handleConfirmBooking}
           disabled={loading}
-          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold disabled:opacity-50"
+          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold flex items-center justify-center gap-2"
         >
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Salvando...
-            </>
-          ) : (
-            "Confirmar Agendamento"
-          )}
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirmar Agendamento"}
         </Button>
       </div>
     </div>
-  );
+  )
 }

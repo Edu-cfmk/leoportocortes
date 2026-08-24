@@ -19,7 +19,7 @@ interface Step4Props {
   selectedDate: string;
   selectedTime: string;
   selectedBarber: Barber | null;
-  selectedService: Service | null;
+  selectedServices: Service[]; // Atualizado para aceitar array de serviços
   onSelectDate: (date: string) => void;
   onSelectTime: (time: string) => void;
   onNext: () => void;
@@ -72,7 +72,7 @@ const WEEKDAYS = [
 ];
 
 /* ============================================================
-   FUNÇÕES AUXILIARES
+    FUNÇÕES AUXILIARES
 ============================================================ */
 
 function normalizeText(value: string | null | undefined) {
@@ -111,21 +111,6 @@ function minutesToTime(totalMinutes: number): string {
   )}`;
 }
 
-/**
- * Converte:
- *
- * "10min"      -> 10
- * "10 min"      -> 10
- * "45min"      -> 45
- * "1h"          -> 60
- * "1h 25min"    -> 85
- * "1h25min"     -> 85
- * "1 hora"      -> 60
- * "1 hora 25 minutos" -> 85
- *
- * Também aceita número puro como minutos:
- * "45" -> 45
- */
 function parseDurationToMinutes(duration?: string | number | null): number {
   if (duration === null || duration === undefined || duration === "") {
     return 45;
@@ -137,7 +122,6 @@ function parseDurationToMinutes(duration?: string | number | null): number {
 
   const normalized = duration.toLowerCase().replace(",", ".").trim();
 
-  // Caso seja apenas "45"
   if (/^\d+$/.test(normalized)) {
     const value = Number(normalized);
     return value > 0 ? value : 45;
@@ -145,16 +129,12 @@ function parseDurationToMinutes(duration?: string | number | null): number {
 
   let totalMinutes = 0;
 
-  // Horas
   const hourMatch = normalized.match(/(\d+)\s*(?:h|hora|horas)/);
-
   if (hourMatch) {
     totalMinutes += Number(hourMatch[1]) * 60;
   }
 
-  // Minutos
   const minuteMatch = normalized.match(/(\d+)\s*(?:min|minuto|minutos)/);
-
   if (minuteMatch) {
     totalMinutes += Number(minuteMatch[1]);
   }
@@ -162,10 +142,6 @@ function parseDurationToMinutes(duration?: string | number | null): number {
   return totalMinutes > 0 ? totalMinutes : 45;
 }
 
-/**
- * Fallback para agendamentos antigos que possuem
- * service_duration = NULL.
- */
 function getBookingDuration(
   serviceDuration: string | null | undefined,
   serviceName: string | null | undefined,
@@ -192,7 +168,6 @@ function getBookingDuration(
     return 60;
   }
 
-  // Fallback genérico para registros antigos
   return 45;
 }
 
@@ -204,7 +179,7 @@ export function Step4DateTime({
   selectedDate,
   selectedTime,
   selectedBarber,
-  selectedService,
+  selectedServices,
   onSelectDate,
   onSelectTime,
   onNext,
@@ -220,7 +195,6 @@ export function Step4DateTime({
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
 
   const [bookedIntervals, setBookedIntervals] = useState<BookedInterval[]>([]);
-
   const [loadingTimes, setLoadingTimes] = useState(false);
 
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>({
@@ -232,17 +206,19 @@ export function Step4DateTime({
   });
 
   /* ==========================================================
-     DURAÇÃO DO SERVIÇO ATUAL
+     DURAÇÃO TOTAL DOS SERVIÇOS SELECIONADOS
   ========================================================== */
-
-  const serviceDuration = useMemo(() => {
-    return parseDurationToMinutes(selectedService?.duration);
-  }, [selectedService?.duration]);
+  const totalServiceDuration = useMemo(() => {
+    if (!selectedServices || selectedServices.length === 0) return 45;
+    return selectedServices.reduce(
+      (acc, s) => acc + parseDurationToMinutes(s.duration),
+      0
+    );
+  }, [selectedServices]);
 
   /* ==========================================================
      BUSCA HORÁRIO + AGENDAMENTOS
   ========================================================== */
-
   useEffect(() => {
     let cancelled = false;
 
@@ -260,60 +236,40 @@ export function Step4DateTime({
         const dayIndex = dateObj.getDay();
         const dayOfWeekName = WEEKDAYS[dayIndex];
 
-        const [generalResult, barberResult, bookingsResult] = await Promise.all(
-          [
-            supabase.from("barber_schedules").select("*").is("barber_id", null),
+        const [generalResult, barberResult, bookingsResult] = await Promise.all([
+          supabase.from("barber_schedules").select("*").is("barber_id", null),
+          supabase
+            .from("barber_schedules")
+            .select("*")
+            .eq("barber_id", selectedBarber.id),
+          supabase
+            .from("bookings")
+            .select("booking_time, status, service_name, service_duration, barber_name")
+            .eq("booking_date", selectedDate)
+            .eq("barber_name", selectedBarber.name),
+        ]);
 
-            supabase
-              .from("barber_schedules")
-              .select("*")
-              .eq("barber_id", selectedBarber.id),
-
-            supabase
-              .from("bookings")
-              .select(
-                "booking_time, status, service_name, service_duration, barber_name",
-              )
-              .eq("booking_date", selectedDate)
-              .eq("barber_name", selectedBarber.name),
-          ],
-        );
-
-        if (generalResult.error) {
-          throw generalResult.error;
-        }
-
-        if (barberResult.error) {
-          throw barberResult.error;
-        }
-
-        if (bookingsResult.error) {
-          throw bookingsResult.error;
-        }
+        if (generalResult.error) throw generalResult.error;
+        if (barberResult.error) throw barberResult.error;
+        if (bookingsResult.error) throw bookingsResult.error;
 
         if (cancelled) return;
 
-        /* ======================================================
-           HORÁRIO GERAL (BASE)
-        ====================================================== */
-
         const generalSchedule = (generalResult.data || []).find(
           (schedule: any) =>
-            normalizeText(schedule.day_of_week) ===
-            normalizeText(dayOfWeekName),
+            normalizeText(schedule.day_of_week) === normalizeText(dayOfWeekName),
         );
 
         const barberSchedule = (barberResult.data || []).find(
           (schedule: any) =>
-            normalizeText(schedule.day_of_week) ===
-            normalizeText(dayOfWeekName),
+            normalizeText(schedule.day_of_week) === normalizeText(dayOfWeekName),
         );
 
-        let generalOpenMin = generalSchedule?.open_time
+        const generalOpenMin = generalSchedule?.open_time
           ? timeToMinutes(generalSchedule.open_time)
           : 8 * 60;
 
-        let generalCloseMin = generalSchedule?.close_time
+        const generalCloseMin = generalSchedule?.close_time
           ? timeToMinutes(generalSchedule.close_time)
           : 18 * 60;
 
@@ -327,30 +283,21 @@ export function Step4DateTime({
           ? timeToMinutes(generalSchedule.lunch_end)
           : null;
 
-        /* ======================================================
-           APLICANDO REGRAS DO BARBEIRO RESPEITANDO O GERAL
-        ====================================================== */
-
         let openMin = generalOpenMin;
         let closeMin = generalCloseMin;
         let lunchStartMin = generalLunchStart;
         let lunchEndMin = generalLunchEnd;
 
         if (barberSchedule) {
-          if (
-            barberSchedule.is_open !== null &&
-            barberSchedule.is_open !== undefined
-          ) {
+          if (barberSchedule.is_open !== null && barberSchedule.is_open !== undefined) {
             isClosed = barberSchedule.is_open === false;
           }
 
-          // O colaborador só pode abrir DEPOIS ou no mesmo horário que a barbearia geral.
           if (barberSchedule.open_time) {
             const barberOpen = timeToMinutes(barberSchedule.open_time);
             openMin = Math.max(generalOpenMin, barberOpen);
           }
 
-          // O colaborador deve fechar ATÉ o horário que a barbearia fecha.
           if (barberSchedule.close_time) {
             const barberClose = timeToMinutes(barberSchedule.close_time);
             closeMin = Math.min(generalCloseMin, barberClose);
@@ -365,11 +312,6 @@ export function Step4DateTime({
           }
         }
 
-        /*
-         * Segurança:
-         * se o fechamento for menor ou igual à abertura,
-         * consideramos o dia fechado.
-         */
         if (closeMin <= openMin) {
           isClosed = true;
         }
@@ -382,34 +324,22 @@ export function Step4DateTime({
           isClosed,
         });
 
-        /* ======================================================
-           SE O DIA ESTIVER FECHADO
-        ====================================================== */
-
         if (isClosed) {
           setBookedIntervals([]);
           setLoadingTimes(false);
           return;
         }
 
-        /* ======================================================
-           CONVERTE AGENDAMENTOS EM INTERVALOS
-        ====================================================== */
-
         const intervals: BookedInterval[] = [];
 
         for (const booking of bookingsResult.data || []) {
           const status = normalizeText(booking.status);
-
           const isCancelled =
             status.includes("cancel") || status.includes("cancelado");
 
-          if (isCancelled) {
-            continue;
-          }
+          if (isCancelled) continue;
 
           const startMin = timeToMinutes(booking.booking_time);
-
           const durationMin = getBookingDuration(
             booking.service_duration,
             booking.service_name,
@@ -422,11 +352,9 @@ export function Step4DateTime({
         }
 
         intervals.sort((a, b) => a.start - b.start);
-
         setBookedIntervals(intervals);
       } catch (error) {
         console.error("Erro ao carregar horários da barbearia:", error);
-
         if (!cancelled) {
           setBookedIntervals([]);
         }
@@ -447,38 +375,31 @@ export function Step4DateTime({
   /* ==========================================================
      GERAÇÃO INTELIGENTE DOS HORÁRIOS
   ========================================================== */
-
   const generatedSlots = useMemo<GeneratedSlot[]>(() => {
     if (
       !selectedDate ||
       !selectedBarber ||
       scheduleConfig.isClosed ||
-      serviceDuration <= 0
+      totalServiceDuration <= 0
     ) {
       return [];
     }
 
     const slots: GeneratedSlot[] = [];
-
     let currentMin = scheduleConfig.openMin;
-
     let safetyCounter = 0;
 
     while (currentMin < scheduleConfig.closeMin && safetyCounter < 1000) {
       safetyCounter++;
 
       const slotStart = currentMin;
-      const slotEnd = slotStart + serviceDuration;
+      const slotEnd = slotStart + totalServiceDuration;
 
       if (slotEnd > scheduleConfig.closeMin) {
         break;
       }
 
       let blockingEnd: number | null = null;
-
-      /* ======================================================
-         ALMOÇO
-      ====================================================== */
 
       if (
         scheduleConfig.lunchStartMin !== null &&
@@ -493,21 +414,12 @@ export function Step4DateTime({
         }
       }
 
-      /* ======================================================
-         AGENDAMENTOS EXISTENTES
-      ====================================================== */
-
       for (const booked of bookedIntervals) {
         const overlaps = slotStart < booked.end && slotEnd > booked.start;
-
         if (overlaps) {
           blockingEnd = Math.max(blockingEnd ?? 0, booked.end);
         }
       }
-
-      /* ======================================================
-         HORÁRIO BLOQUEADO
-      ====================================================== */
 
       if (blockingEnd !== null) {
         slots.push({
@@ -520,10 +432,6 @@ export function Step4DateTime({
         currentMin = blockingEnd;
         continue;
       }
-
-      /* ======================================================
-         HORÁRIO LIVRE
-      ====================================================== */
 
       slots.push({
         time: minutesToTime(slotStart),
@@ -541,13 +449,12 @@ export function Step4DateTime({
     selectedBarber,
     scheduleConfig,
     bookedIntervals,
-    serviceDuration,
+    totalServiceDuration,
   ]);
 
   /* ==========================================================
-     LIMPA HORÁRIO SE O SERVIÇO MUDAR
+     LIMPA HORÁRIO SE OS SERVIÇOS MUDAREM
   ========================================================== */
-
   useEffect(() => {
     if (!selectedTime) return;
 
@@ -563,9 +470,7 @@ export function Step4DateTime({
   /* ==========================================================
      CALENDÁRIO
   ========================================================== */
-
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
-
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
   const handlePrevMonth = () => {
@@ -588,9 +493,7 @@ export function Step4DateTime({
 
   const handleSelectDay = (day: number) => {
     const formattedMonth = String(currentMonth + 1).padStart(2, "0");
-
     const formattedDay = String(day).padStart(2, "0");
-
     const dateStr = `${currentYear}-${formattedMonth}-${formattedDay}`;
 
     onSelectDate(dateStr);
@@ -600,23 +503,14 @@ export function Step4DateTime({
   /* ==========================================================
      RENDER
   ========================================================== */
-
   return (
     <div className="space-y-6">
-      {/* ======================================================
-          TÍTULO
-      ====================================================== */}
-
       <div className="flex items-center gap-2 text-red-500 font-semibold">
         <CalendarIcon className="w-5 h-5" />
-
         <h2 className="text-lg text-white">Passo 4: Data e Horário</h2>
       </div>
 
-      {/* ======================================================
-          CALENDÁRIO
-      ====================================================== */}
-
+      {/* CALENDÁRIO */}
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold text-white capitalize">
@@ -642,8 +536,6 @@ export function Step4DateTime({
           </div>
         </div>
 
-        {/* DIAS DA SEMANA */}
-
         <div className="grid grid-cols-7 text-center text-xs font-semibold text-zinc-500">
           {WEEKDAYS.map((day) => (
             <div key={day} className="py-1 uppercase">
@@ -652,32 +544,20 @@ export function Step4DateTime({
           ))}
         </div>
 
-        {/* DIAS */}
-
         <div className="grid grid-cols-7 gap-1 text-center text-sm">
-          {Array.from({
-            length: firstDayOfMonth,
-          }).map((_, index) => (
+          {Array.from({ length: firstDayOfMonth }).map((_, index) => (
             <div key={`empty-${index}`} />
           ))}
 
-          {Array.from({
-            length: daysInMonth,
-          }).map((_, index) => {
+          {Array.from({ length: daysInMonth }).map((_, index) => {
             const day = index + 1;
-
             const cellDate = new Date(currentYear, currentMonth, day);
-
             cellDate.setHours(0, 0, 0, 0);
 
             const isPast = cellDate < today;
-
             const formattedMonth = String(currentMonth + 1).padStart(2, "0");
-
             const formattedDay = String(day).padStart(2, "0");
-
             const dateStr = `${currentYear}-${formattedMonth}-${formattedDay}`;
-
             const isSelected = selectedDate === dateStr;
 
             return (
@@ -690,8 +570,8 @@ export function Step4DateTime({
                   isSelected
                     ? "bg-red-600 text-white font-bold shadow-md shadow-red-900/40"
                     : isPast
-                      ? "text-zinc-700 cursor-not-allowed"
-                      : "text-zinc-200 hover:bg-zinc-800 hover:text-white"
+                    ? "text-zinc-700 cursor-not-allowed"
+                    : "text-zinc-200 hover:bg-zinc-800 hover:text-white"
                 }`}
               >
                 {day}
@@ -701,10 +581,7 @@ export function Step4DateTime({
         </div>
       </div>
 
-      {/* ======================================================
-          HORÁRIOS
-      ====================================================== */}
-
+      {/* HORÁRIOS */}
       {selectedDate ? (
         <div className="space-y-2 pt-2">
           <label className="text-xs font-medium text-zinc-300 flex items-center justify-between">
@@ -722,26 +599,19 @@ export function Step4DateTime({
             )}
           </label>
 
-          {/* ==================================================
-              SERVIÇO SELECIONADO
-          ================================================== */}
-
-          {selectedService && (
-            <div className="text-xs text-zinc-500">
-              Serviço:{" "}
-              <span className="text-zinc-300 font-semibold">
-                {selectedService.name}
-              </span>{" "}
-              — duração:{" "}
-              <span className="text-red-400 font-semibold">
-                {selectedService.duration}
-              </span>
+          {/* SERVIÇOS SELECIONADOS */}
+          {selectedServices && selectedServices.length > 0 && (
+            <div className="text-xs text-zinc-500 space-y-1 bg-zinc-950/40 p-2.5 rounded-lg border border-zinc-800/60">
+              <span className="font-semibold text-zinc-400">Serviços escolhidos:</span>
+              <ul className="list-disc list-inside text-zinc-300">
+                {selectedServices.map((s) => (
+                  <li key={s.id}>
+                    {s.name} <span className="text-red-400">({s.duration})</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
-
-          {/* ==================================================
-              LOADING
-          ================================================== */}
 
           {loadingTimes ? (
             <div className="flex justify-center items-center py-6">
@@ -753,13 +623,12 @@ export function Step4DateTime({
             </p>
           ) : generatedSlots.length === 0 ? (
             <p className="text-xs text-zinc-500 text-center py-6 bg-zinc-950/50 rounded-lg border border-zinc-800/50">
-              Não há horários disponíveis para este serviço neste dia.
+              Não há horários disponíveis para estes serviços neste dia.
             </p>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {generatedSlots.map((slot) => {
                 const isSelected = selectedTime === slot.time;
-
                 const isUnavailable = !slot.available;
 
                 return (
@@ -772,8 +641,8 @@ export function Step4DateTime({
                       isUnavailable
                         ? "bg-zinc-900/50 border-zinc-900 text-zinc-600 cursor-not-allowed line-through"
                         : isSelected
-                          ? "bg-red-600 border-red-500 text-white shadow-md shadow-red-900/30"
-                          : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800"
+                        ? "bg-red-600 border-red-500 text-white shadow-md shadow-red-900/30"
+                        : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800"
                     }`}
                   >
                     {slot.time}
@@ -789,10 +658,7 @@ export function Step4DateTime({
         </p>
       )}
 
-      {/* ======================================================
-          NAVEGAÇÃO
-      ====================================================== */}
-
+      {/* NAVEGAÇÃO */}
       <div className="flex gap-3 pt-4 border-t border-zinc-800">
         <Button
           variant="outline"

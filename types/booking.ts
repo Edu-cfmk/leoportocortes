@@ -1,8 +1,8 @@
 export interface Service {
-  id: string
-  name: string
-  price: string
-  duration: string 
+  id: string;
+  name: string;
+  price: string;
+  duration: string;
 }
 
 export interface Barber {
@@ -12,10 +12,10 @@ export interface Barber {
 }
 
 export interface BookingData {
-  clientName: string
-  clientPhone: string
-  service: Service | null
-  barber: Barber | null
-  date: string
-  time: string
+  clientName: string;
+  clientPhone: string;
+  services: Service[]; // Mudou de 'service: Service | null' para 'services: Service[]'
+  barber: any | null;
+  date: string;
+  time: string;
 }
