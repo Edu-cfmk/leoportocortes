@@ -144,7 +144,6 @@ export function Step4DateTime({
           for (const booking of sortedBookings) {
             const startMin = timeToMinutes(booking.booking_time)
             
-            // Lê a duração salva no banco, ou calcula dinamicamente pelo nome como fallback
             let durationMin = 45
             if (booking.service_duration) {
               durationMin = parseDurationToMinutes(booking.service_duration)
@@ -161,21 +160,41 @@ export function Step4DateTime({
         }
         setBookedIntervals(intervals)
 
-        // 4. GERAÇÃO DE HORÁRIOS LIMPA E PADRÃO (De 30 em 30 min)
+        // 4. GERAÇÃO DE HORÁRIOS FLEXÍVEIS (Encaixa após o término dos agendamentos)
+        const serviceDuration = parseDurationToMinutes(selectedService?.duration)
         const slots: string[] = []
         let currentMin = openMin
 
-        while (currentMin < closeMin) {
-          const slotEndMin = currentMin + 30
+        while (currentMin + serviceDuration <= closeMin) {
+          const slotEndMin = currentMin + serviceDuration
           const crossesLunch = currentMin < lunchEndMin && slotEndMin > lunchStartMin
 
-          if (!crossesLunch) {
-            slots.push(minutesToTime(currentMin))
+          let hasCollision = false
+          let nextJumpMin = currentMin + 30 // Padrão de avanço se estiver livre
+
+          for (const booked of intervals) {
+            // Se o slot colide com um agendamento existente
+            if (currentMin < booked.end && slotEndMin > booked.start) {
+              hasCollision = true
+              // Pula o ponteiro exatamente para o fim do serviço ocupado para permitir encaixe perfeito
+              nextJumpMin = booked.end
+              break
+            }
           }
-          currentMin += 30
+
+          if (!hasCollision) {
+            if (!crossesLunch) {
+              slots.push(minutesToTime(currentMin))
+            }
+            currentMin += 30 // Incremento padrão na grade livre
+          } else {
+            currentMin = nextJumpMin
+          }
         }
 
-        setAvailableSlots(slots)
+        // Remove duplicadas e ordena cronologicamente
+        const uniqueSlots = Array.from(new Set(slots)).sort((a, b) => timeToMinutes(a) - timeToMinutes(b))
+        setAvailableSlots(uniqueSlots)
 
       } catch (err) {
         console.error("Erro inesperado ao carregar horários:", err)
@@ -185,7 +204,7 @@ export function Step4DateTime({
     }
 
     fetchScheduleAndBookings()
-  }, [selectedDate, selectedBarber])
+  }, [selectedDate, selectedBarber, selectedService])
 
   const isSlotUnavailable = (slotTime: string) => {
     const slotStartMin = timeToMinutes(slotTime)
