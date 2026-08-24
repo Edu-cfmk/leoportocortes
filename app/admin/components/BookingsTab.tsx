@@ -1,6 +1,8 @@
 "use client"
 
+import React, { useEffect } from "react"
 import { Calendar, RefreshCw, Clock3, MessageCircle, X, CheckCircle2, XCircle } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 
 interface BookingsTabProps {
   selectedDate: string
@@ -15,6 +17,31 @@ export function BookingsTab({
   selectedDate, setSelectedDate, fetchBookings, loading, bookings, handleUpdateStatus
 }: BookingsTabProps) {
   
+  // Ativa o Realtime do Supabase para atualizar a lista automaticamente
+  useEffect(() => {
+    fetchBookings()
+
+    const channel = supabase
+      .channel('admin-bookings-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Escuta INSERT, UPDATE e DELETE
+          schema: 'public',
+          table: 'bookings',
+        },
+        (payload) => {
+          console.log('Alteração detectada via Realtime:', payload)
+          fetchBookings()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   // Função auxiliar para formatar YYYY-MM-DD para DD/MM/AAAA
   const formatDate = (dateStr: string) => {
     if (!dateStr) return ""
@@ -177,7 +204,7 @@ export function BookingsTab({
                       onClick={() => handleUpdateStatus(item.id, "completed")} 
                       className="px-3 py-1.5 text-xs font-bold bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 rounded-lg transition-colors"
                     >
-                      Concluir
+                      Concluído
                     </button>
                   )}
                   {item.status !== "canceled" && (
