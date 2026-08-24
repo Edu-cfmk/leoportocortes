@@ -1,25 +1,41 @@
 "use client"
 
-import React, { useMemo } from "react"
-import { BarChart3, DollarSign, Scissors, Users, CalendarCheck, TrendingUp } from "lucide-react"
+import React, { useState, useMemo } from "react"
+import { BarChart3, DollarSign, Scissors, Users, CalendarCheck, TrendingUp, Filter } from "lucide-react"
 
 interface ReportsTabProps {
   bookings: any[]
 }
 
 export function ReportsTab({ bookings }: ReportsTabProps) {
-  // Processamento dos dados para os relatórios
-  const stats = useMemo(() => {
+  // Filtro de período: "all", "today", "month"
+  const [periodFilter, setPeriodFilter] = useState<"all" | "today" | "month">("month")
+
+  // Filtragem dos agendamentos conforme o período selecionado
+  const filteredBookings = useMemo(() => {
     const list = bookings || []
-    
-    // Total de agendamentos
-    const totalBookings = list.length
-    
-    // Apenas concluídos contam para faturamento real, ou todos se preferir. Vamos usar concluídos + pendentes para estimativa, ou focar nos concluídos. Vamos filtrar concluídos ou válidos (não cancelados).
+    const todayStr = new Date().toISOString().split("T")[0] // YYYY-MM-DD
+    const currentMonthPrefix = todayStr.slice(0, 7) // YYYY-MM
+
+    return list.filter(b => {
+      if (!b.booking_date) return periodFilter === "all"
+      if (periodFilter === "today") {
+        return b.booking_date === todayStr
+      }
+      if (periodFilter === "month") {
+        return b.booking_date.startsWith(currentMonthPrefix)
+      }
+      return true
+    })
+  }, [bookings, periodFilter])
+
+  // Estatísticas calculadas com base nos agendamentos filtrados
+  const stats = useMemo(() => {
+    const list = filteredBookings
     const validBookings = list.filter(b => b.status !== "canceled")
     const completedBookings = list.filter(b => b.status === "completed")
 
-    // Faturamento Total (convertendo service_price string como "R$ 70,00" para número)
+    // Faturamento Total (Válidos)
     let totalRevenue = 0
     validBookings.forEach(b => {
       if (b.service_price) {
@@ -56,22 +72,68 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
       byBarber[barber].revenue += val
     })
 
+    // Agrupamento por Serviço (Ranking)
+    const byService: { [key: string]: { count: number, revenue: number } } = {}
+    validBookings.forEach(b => {
+      const service = b.service_name || "Serviço Geral"
+      if (!byService[service]) {
+        byService[service] = { count: 0, revenue: 0 }
+      }
+      byService[service].count += 1
+      
+      let val = 0
+      if (b.service_price) {
+        const clean = b.service_price.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.')
+        val = parseFloat(clean) || 0
+      }
+      byService[service].revenue += val
+    })
+
+    // Ordenar serviços mais vendidos
+    const topServices = Object.entries(byService)
+      .sort((a, b) => b[1].count - a[1].count)
+
     return {
-      totalBookings,
+      totalBookings: list.length,
       validCount: validBookings.length,
       completedCount: completedBookings.length,
       totalRevenue,
       completedRevenue,
-      byBarber
+      byBarber,
+      topServices
     }
-  }, [bookings])
+  }, [filteredBookings])
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-red-500" /> Relatórios e Estatísticas Gerais
+      {/* Cabeçalho e Filtro de Período */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-zinc-950 border border-zinc-800 p-4 rounded-xl">
+        <h2 className="text-sm font-bold text-white flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-red-500" /> Relatórios e Estatísticas Gerais
         </h2>
+
+        {/* Botões de Período */}
+        <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 p-1 rounded-lg">
+          <Filter className="w-3.5 h-3.5 text-zinc-400 ml-2" />
+          <button
+            onClick={() => setPeriodFilter("today")}
+            className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${periodFilter === "today" ? "bg-red-600 text-white" : "text-zinc-400 hover:text-white"}`}
+          >
+            Hoje
+          </button>
+          <button
+            onClick={() => setPeriodFilter("month")}
+            className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${periodFilter === "month" ? "bg-red-600 text-white" : "text-zinc-400 hover:text-white"}`}
+          >
+            Este Mês
+          </button>
+          <button
+            onClick={() => setPeriodFilter("all")}
+            className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${periodFilter === "all" ? "bg-red-600 text-white" : "text-zinc-400 hover:text-white"}`}
+          >
+            Tudo
+          </button>
+        </div>
       </div>
 
       {/* Cards de Métricas Principais */}
@@ -84,7 +146,7 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
           <p className="text-2xl font-extrabold text-white">
             R$ {stats.totalRevenue.toFixed(2).replace('.', ',')}
           </p>
-          <p className="text-[11px] text-zinc-500">Baseado em todos os agendamentos ativos</p>
+          <p className="text-[11px] text-zinc-500">Baseado nos agendamentos do período</p>
         </div>
 
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2">
@@ -104,44 +166,80 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
             <Scissors className="w-4 h-4 text-red-500" />
           </div>
           <p className="text-2xl font-extrabold text-white">{stats.validCount}</p>
-          <p className="text-[11px] text-zinc-500">Excluindo os cancelados</p>
+          <p className="text-[11px] text-zinc-500">Excluindo cancelados</p>
         </div>
 
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2">
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-medium uppercase">Concluídos / Realizados</span>
+            <span className="text-xs font-medium uppercase">Atendimentos Concluídos</span>
             <CalendarCheck className="w-4 h-4 text-blue-500" />
           </div>
           <p className="text-2xl font-extrabold text-white">{stats.completedCount}</p>
-          <p className="text-[11px] text-zinc-500">Atendimentos finalizados com sucesso</p>
+          <p className="text-[11px] text-zinc-500">Finalizados com sucesso</p>
         </div>
       </div>
 
-      {/* Desempenho por Barbeiro */}
-      <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 space-y-4">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
-          <Users className="w-4 h-4 text-red-500" /> Desempenho por Profissional
-        </h3>
+      {/* Grid Inferior: Desempenho por Barbeiro + Ranking de Serviços */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Desempenho por Barbeiro */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 space-y-4">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <Users className="w-4 h-4 text-red-500" /> Desempenho por Profissional
+          </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Object.keys(stats.byBarber).length === 0 ? (
-            <p className="text-xs text-zinc-400">Nenhum dado registrado ainda.</p>
-          ) : (
-            Object.entries(stats.byBarber).map(([barberName, data]) => (
-              <div key={barberName} className="bg-zinc-900/60 border border-zinc-800 p-4 rounded-lg flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-white">{barberName}</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">{data.count} atendimento(s) realizado(s)</p>
+          <div className="space-y-3">
+            {Object.keys(stats.byBarber).length === 0 ? (
+              <p className="text-xs text-zinc-400 py-4 text-center">Nenhum dado registrado para este período.</p>
+            ) : (
+              Object.entries(stats.byBarber).map(([barberName, data]) => (
+                <div key={barberName} className="bg-zinc-900/60 border border-zinc-800 p-3.5 rounded-lg flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-white">{barberName}</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">{data.count} atendimento(s)</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-extrabold text-emerald-400">
+                      R$ {data.revenue.toFixed(2).replace('.', ',')}
+                    </p>
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Faturamento</span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-extrabold text-emerald-400">
-                    R$ {data.revenue.toFixed(2).replace('.', ',')}
-                  </p>
-                  <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Faturamento</span>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Ranking de Serviços Mais Realizados */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 space-y-4">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <Scissors className="w-4 h-4 text-red-500" /> Serviços Mais Realizados (Ranking)
+          </h3>
+
+          <div className="space-y-3">
+            {stats.topServices.length === 0 ? (
+              <p className="text-xs text-zinc-400 py-4 text-center">Nenhum serviço registrado para este período.</p>
+            ) : (
+              stats.topServices.map(([serviceName, data], index) => (
+                <div key={serviceName} className="bg-zinc-900/60 border border-zinc-800 p-3.5 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 flex items-center justify-center bg-red-950 border border-red-800 text-red-400 text-xs font-bold rounded-full">
+                      {index + 1}º
+                    </span>
+                    <div>
+                      <p className="text-sm font-bold text-white">{serviceName}</p>
+                      <p className="text-xs text-zinc-400 mt-0.5">{data.count} vez(es) agendado</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-extrabold text-emerald-400">
+                      R$ {data.revenue.toFixed(2).replace('.', ',')}
+                    </p>
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Total</span>
+                  </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>
