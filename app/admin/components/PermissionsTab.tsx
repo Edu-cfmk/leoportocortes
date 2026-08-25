@@ -55,7 +55,7 @@ export function PermissionsTab() {
   const handleTogglePermission = async (roleName: string, field: string, currentValue: boolean) => {
     const newValue = !currentValue;
 
-    // Atualização otimista imediata na tela (evita que a página pisque ou pule)
+    // Atualização otimista imediata na tela (evita que a página pule)
     setRoles((prevRoles) =>
       prevRoles.map((r) => {
         if (r.role_name === roleName) {
@@ -114,20 +114,17 @@ export function PermissionsTab() {
     }
 
     if (confirm(`Tem certeza que deseja excluir o cargo ${roleName}?`)) {
-      console.log("Tentando excluir o cargo:", roleName);
-      
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("role_permissions")
         .delete()
         .eq("role_name", roleName);
 
       if (error) {
-        console.error("Erro detalhado do Supabase:", error);
         alert("Erro ao excluir no banco: " + error.message);
       } else {
-        console.log("Excluído com sucesso:", data);
+        // Remove instantaneamente da tela sem precisar de reload completo
+        setRoles((prevRoles) => prevRoles.filter((r) => r.role_name !== roleName));
         alert("Cargo excluído com sucesso!");
-        fetchRolesAndPermissions();
       }
     }
   };
