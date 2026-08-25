@@ -69,7 +69,6 @@ export default function AdminPage() {
     }
   }, []);
 
-  // Busca as permissões específicas do cargo logado no Supabase
   useEffect(() => {
     if (session) {
       fetchRolePermissions();
@@ -81,7 +80,6 @@ export default function AdminPage() {
   const fetchRolePermissions = async () => {
     if (!session) return;
     if (hasFullAccess) {
-      // ADM e DEV tem acesso total automático
       setRolePermissions({
         can_manage_services: true,
         can_manage_barbers: true,
@@ -114,13 +112,7 @@ export default function AdminPage() {
   const fetchBarbers = async () => {
     const { data } = await supabase.from("barbers").select("*");
     if (data) {
-      // Se não for ADM/DEV, esconde o usuário desenvolvedor/admin principal da listagem
-      const filtered = data.filter((b: any) => {
-        if (hasFullAccess) return true;
-        const nameLower = b.name.toLowerCase();
-        return !nameLower.includes("eduardo") && !nameLower.includes("leo porto") && !nameLower.includes("dev");
-      });
-      setBarbers(filtered);
+      setBarbers(data);
     }
   };
 
@@ -237,7 +229,6 @@ export default function AdminPage() {
     );
   }
 
-  // Define quais abas o usuário pode ver com base estrita nas permissões do banco
   const canSeeServices = hasFullAccess || rolePermissions?.can_manage_services;
   const canSeeBarbers = hasFullAccess || rolePermissions?.can_manage_barbers;
   const canSeeSchedules = hasFullAccess || rolePermissions?.can_manage_schedules; 
@@ -277,26 +268,64 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Abas de Navegação Responsivas (Select no celular / Botões no desktop) */}
-        <div className="border-b border-zinc-800 pb-3">
-          {/* Versão Celular: Select rápido e elegante */}
-          <div className="block sm:hidden">
-            <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Navegar no Painel:</label>
-            <select
-              value={activeTab}
-              onChange={(e) => setActiveTab(e.target.value as any)}
-              className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-lg p-3 text-xs font-bold focus:outline-none focus:border-red-600"
+        {/* Abas de Navegação: Grid elegante no Mobile / Botões horizontais no Desktop */}
+        <div className="border-b border-zinc-800 pb-4">
+          {/* Versão Mobile (Grid de botões intuitivo) */}
+          <div className="grid grid-cols-2 gap-2 sm:hidden">
+            <button
+              onClick={() => setActiveTab("bookings")}
+              className={`p-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === "bookings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-300 border border-zinc-800"}`}
             >
-              <option value="bookings">📅 Agendamentos</option>
-              {canSeeServices && <option value="services">🛠️ Serviços</option>}
-              {canSeeBarbers && <option value="barbers">👥 Colaboradores</option>}
-              {canSeeSchedules && <option value="settings">⏰ Horários</option>}
-              {canSeeReports && <option value="reports">📊 Relatórios</option>}
-              {hasFullAccess && <option value="permissions">🛡️ Permissões</option>}
-            </select>
+              <Calendar className="w-4 h-4" /> Agendamentos
+            </button>
+
+            {canSeeServices && (
+              <button
+                onClick={() => setActiveTab("services")}
+                className={`p-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === "services" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-300 border border-zinc-800"}`}
+              >
+                <Wrench className="w-4 h-4" /> Serviços
+              </button>
+            )}
+
+            {canSeeBarbers && (
+              <button
+                onClick={() => setActiveTab("barbers")}
+                className={`p-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === "barbers" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-300 border border-zinc-800"}`}
+              >
+                <Users className="w-4 h-4" /> Colaboradores
+              </button>
+            )}
+
+            {canSeeSchedules && (
+              <button
+                onClick={() => setActiveTab("settings")}
+                className={`p-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === "settings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-300 border border-zinc-800"}`}
+              >
+                <Clock className="w-4 h-4" /> Horários
+              </button>
+            )}
+
+            {canSeeReports && (
+              <button
+                onClick={() => setActiveTab("reports")}
+                className={`p-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === "reports" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-300 border border-zinc-800"}`}
+              >
+                <BarChart3 className="w-4 h-4" /> Relatórios
+              </button>
+            )}
+
+            {hasFullAccess && (
+              <button
+                onClick={() => setActiveTab("permissions")}
+                className={`p-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === "permissions" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-300 border border-zinc-800"}`}
+              >
+                <Shield className="w-4 h-4" /> Permissões
+              </button>
+            )}
           </div>
 
-          {/* Versão Desktop: Botões horizontais tradicionais */}
+          {/* Versão Desktop (Abas horizontais tradicionais) */}
           <div className="hidden sm:flex items-center gap-2 overflow-x-auto">
             <button
               onClick={() => setActiveTab("bookings")}
@@ -352,7 +381,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Conteúdo das Abas com Proteção de Segurança */}
+        {/* Conteúdo das Abas */}
         {activeTab === "bookings" && (
           <BookingsTab
             selectedDate={selectedDate}
