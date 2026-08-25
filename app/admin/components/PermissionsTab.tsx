@@ -15,8 +15,10 @@ export function PermissionsTab() {
 
   const fetchRolesAndPermissions = async () => {
     const { data, error } = await supabase.from("role_permissions").select("*");
-    if (!error) {
-      setRoles(data || []);
+    if (!error && data) {
+      // Oculta o cargo DEV completamente da matriz de gerenciamento
+      const filteredRoles = data.filter((r: any) => r.role_name !== "DEV");
+      setRoles(filteredRoles);
     }
   };
 
@@ -32,6 +34,7 @@ export function PermissionsTab() {
         role_name: formattedRole,
         can_manage_services: false,
         can_manage_barbers: false,
+        can_manage_bookings: false,
         can_manage_schedule: false,
         can_manage_schedules: false,
         can_manage_reports: false,
@@ -48,11 +51,6 @@ export function PermissionsTab() {
   };
 
   const handleTogglePermission = async (roleName: string, field: string, currentValue: boolean) => {
-    if (roleName === "ADM") {
-      alert("As permissões do ADM principal não podem ser alteradas.");
-      return;
-    }
-
     const { error } = await supabase
       .from("role_permissions")
       .update({ [field]: !currentValue })
@@ -114,12 +112,87 @@ export function PermissionsTab() {
             Matriz de Permissões por Cargo
           </h3>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            Deslize para o lado para ver todas as colunas no celular ↔️
+            Gerencie o acesso de cada função no painel administrativo.
           </p>
         </div>
 
-        {/* Container com rolagem horizontal fluida para celular */}
-        <div className="w-full overflow-x-auto pb-2">
+        {/* Versão Compacta/Cards para Celular (Elimina rolagem horizontal) */}
+        <div className="space-y-4 sm:hidden">
+          {roles.map((r) => (
+            <div key={r.id || r.role_name} className="bg-black/60 border border-zinc-800 p-4 rounded-xl space-y-3">
+              <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
+                <span className="bg-red-950 text-red-400 border border-red-800 px-2.5 py-1 rounded text-xs font-bold">
+                  {r.role_name}
+                </span>
+                {r.role_name !== "ADM" && r.role_name !== "Barbeiro" ? (
+                  <button
+                    onClick={() => handleDeleteRole(r.role_name)}
+                    className="p-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors flex items-center gap-1 text-[11px]"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Excluir
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-zinc-600 italic">Padrão</span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                  <span className="text-zinc-400">Serviços</span>
+                  <input
+                    type="checkbox"
+                    checked={r.can_manage_services}
+                    onChange={() => handleTogglePermission(r.role_name, "can_manage_services", r.can_manage_services)}
+                    className="w-4 h-4 accent-red-600 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                  <span className="text-zinc-400">Colaboradores</span>
+                  <input
+                    type="checkbox"
+                    checked={r.can_manage_barbers}
+                    onChange={() => handleTogglePermission(r.role_name, "can_manage_barbers", r.can_manage_barbers)}
+                    className="w-4 h-4 accent-red-600 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                  <span className="text-zinc-400">Agendamentos</span>
+                  <input
+                    type="checkbox"
+                    checked={r.can_manage_bookings ?? true}
+                    onChange={() => handleTogglePermission(r.role_name, "can_manage_bookings", r.can_manage_bookings ?? true)}
+                    className="w-4 h-4 accent-red-600 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                  <span className="text-zinc-400">Horários</span>
+                  <input
+                    type="checkbox"
+                    checked={r.can_manage_schedules || r.can_manage_schedule}
+                    onChange={() => handleTogglePermission(r.role_name, "can_manage_schedules", r.can_manage_schedules || r.can_manage_schedule)}
+                    className="w-4 h-4 accent-red-600 cursor-pointer"
+                  />
+                </label>
+
+                <label className="col-span-2 flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                  <span className="text-zinc-400">Relatórios</span>
+                  <input
+                    type="checkbox"
+                    checked={r.can_manage_reports}
+                    onChange={() => handleTogglePermission(r.role_name, "can_manage_reports", r.can_manage_reports)}
+                    className="w-4 h-4 accent-red-600 cursor-pointer"
+                  />
+                </label>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Versão Tabela Tradicional (Apenas Desktop) */}
+        <div className="hidden sm:block w-full overflow-x-auto pb-2">
           <table className="w-full min-w-[600px] text-left border-collapse">
             <thead>
               <tr className="border-b border-zinc-800 text-[11px] text-zinc-400 uppercase">
@@ -144,7 +217,6 @@ export function PermissionsTab() {
                     <input
                       type="checkbox"
                       checked={r.can_manage_services}
-                      disabled={r.role_name === "ADM"}
                       onChange={() => handleTogglePermission(r.role_name, "can_manage_services", r.can_manage_services)}
                       className="w-4 h-4 accent-red-600 cursor-pointer"
                     />
@@ -153,7 +225,6 @@ export function PermissionsTab() {
                     <input
                       type="checkbox"
                       checked={r.can_manage_barbers}
-                      disabled={r.role_name === "ADM"}
                       onChange={() => handleTogglePermission(r.role_name, "can_manage_barbers", r.can_manage_barbers)}
                       className="w-4 h-4 accent-red-600 cursor-pointer"
                     />
@@ -161,17 +232,15 @@ export function PermissionsTab() {
                   <td className="p-3 text-center">
                     <input
                       type="checkbox"
-                      checked={true}
-                      disabled={true}
-                      title="Agendamentos padrão"
-                      className="w-4 h-4 accent-red-600 opacity-60 cursor-not-allowed"
+                      checked={r.can_manage_bookings ?? true}
+                      onChange={() => handleTogglePermission(r.role_name, "can_manage_bookings", r.can_manage_bookings ?? true)}
+                      className="w-4 h-4 accent-red-600 cursor-pointer"
                     />
                   </td>
                   <td className="p-3 text-center">
                     <input
                       type="checkbox"
                       checked={r.can_manage_schedules || r.can_manage_schedule}
-                      disabled={r.role_name === "ADM"}
                       onChange={() => handleTogglePermission(r.role_name, "can_manage_schedules", r.can_manage_schedules || r.can_manage_schedule)}
                       className="w-4 h-4 accent-red-600 cursor-pointer"
                     />
@@ -180,7 +249,6 @@ export function PermissionsTab() {
                     <input
                       type="checkbox"
                       checked={r.can_manage_reports}
-                      disabled={r.role_name === "ADM"}
                       onChange={() => handleTogglePermission(r.role_name, "can_manage_reports", r.can_manage_reports)}
                       className="w-4 h-4 accent-red-600 cursor-pointer"
                     />

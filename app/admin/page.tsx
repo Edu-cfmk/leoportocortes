@@ -56,7 +56,8 @@ export default function AdminPage() {
   const [selectedBarber, setSelectedBarber] = useState<string>("geral");
   const [schedules, setSchedules] = useState<DaySchedule[]>(defaultSchedules);
 
-  const hasFullAccess = session?.role === "ADM" || session?.role === "DEV";
+  const isDev = session?.role === "DEV";
+  const hasFullAccess = session?.role === "ADM" || isDev;
 
   useEffect(() => {
     const local = localStorage.getItem("admin_session");
@@ -83,6 +84,7 @@ export default function AdminPage() {
       setRolePermissions({
         can_manage_services: true,
         can_manage_barbers: true,
+        can_manage_bookings: true,
         can_manage_schedule: true,
         can_manage_schedules: true,
         can_manage_reports: true,
@@ -112,7 +114,13 @@ export default function AdminPage() {
   const fetchBarbers = async () => {
     const { data } = await supabase.from("barbers").select("*");
     if (data) {
-      setBarbers(data);
+      // Se não for DEV, oculta o perfil DEV da listagem de colaboradores
+      const filtered = data.filter((b: any) => {
+        if (isDev) return true;
+        const nameLower = b.name.toLowerCase();
+        return !nameLower.includes("dev") && !nameLower.includes("eduardo");
+      });
+      setBarbers(filtered);
     }
   };
 
@@ -270,7 +278,6 @@ export default function AdminPage() {
 
         {/* Abas de Navegação: Grid elegante no Mobile / Botões horizontais no Desktop */}
         <div className="border-b border-zinc-800 pb-4">
-          {/* Versão Mobile (Grid de botões intuitivo) */}
           <div className="grid grid-cols-2 gap-2 sm:hidden">
             <button
               onClick={() => setActiveTab("bookings")}
@@ -325,7 +332,6 @@ export default function AdminPage() {
             )}
           </div>
 
-          {/* Versão Desktop (Abas horizontais tradicionais) */}
           <div className="hidden sm:flex items-center gap-2 overflow-x-auto">
             <button
               onClick={() => setActiveTab("bookings")}
