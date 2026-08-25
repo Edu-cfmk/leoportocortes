@@ -34,6 +34,7 @@ export function PermissionsTab() {
     const { error } = await supabase.from("role_permissions").insert([
       {
         role_name: formattedRole,
+        can_manage_bookings: false,
         can_manage_services: false,
         can_manage_barbers: false,
         can_manage_schedule: false,
@@ -43,6 +44,7 @@ export function PermissionsTab() {
     ]);
 
     if (error) {
+      // Se por acaso a coluna can_manage_bookings não existir no Supabase, avisamos de forma clara
       alert("Erro ao criar cargo: " + error.message);
     } else {
       setNewRoleName("");
@@ -53,9 +55,9 @@ export function PermissionsTab() {
 
   const handleTogglePermission = async (roleName: string, field: string, currentValue: boolean) => {
     const newValue = !currentValue;
-    
-    // Atualiza ambas as colunas de horário para garantir compatibilidade total com o banco
     const updatePayload: any = { [field]: newValue };
+
+    // Sincroniza se mexer em horários
     if (field === "can_manage_schedule" || field === "can_manage_schedules") {
       updatePayload.can_manage_schedule = newValue;
       updatePayload.can_manage_schedules = newValue;
@@ -67,7 +69,7 @@ export function PermissionsTab() {
       .eq("role_name", roleName);
 
     if (error) {
-      alert("Erro ao atualizar permissão: " + error.message);
+      alert("Erro ao atualizar permissão: " + error.message + "\n\nNota: Se o erro mencionar 'can_manage_bookings', execute o comando SQL ALTER TABLE role_permissions ADD COLUMN can_manage_bookings BOOLEAN DEFAULT false; no seu Supabase.");
     } else {
       fetchRolesAndPermissions();
     }
@@ -142,7 +144,7 @@ export function PermissionsTab() {
             Matriz de Permissões por Cargo
           </h3>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            Gerencie o acesso, edite nomes e remova cargos personalizados.
+            Gerencie o acesso independente para cada aba do painel administrativo.
           </p>
         </div>
 
@@ -155,59 +157,71 @@ export function PermissionsTab() {
             return (
               <div key={r.id || r.role_name} className="bg-black/60 border border-zinc-800 p-4 rounded-xl space-y-3">
                 <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
-                  {editingRoleName === r.role_name ? (
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        value={tempRoleName}
-                        onChange={(e) => setTempRoleName(e.target.value)}
-                        className="bg-black border border-zinc-700 px-2 py-1 rounded text-xs text-white w-28 focus:outline-none focus:border-red-600"
-                      />
-                      <button
-                        onClick={() => handleUpdateRoleName(r.role_name)}
-                        className="p-1 bg-green-950 text-green-400 rounded hover:bg-green-900"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setEditingRoleName(null)}
-                        className="p-1 bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="bg-red-950 text-red-400 border border-red-800 px-2.5 py-1 rounded text-xs font-bold">
-                        {r.role_name}
-                      </span>
-                      {!isDefault && (
-                        <button
-                          onClick={() => {
-                            setEditingRoleName(r.role_name);
-                            setTempRoleName(r.role_name);
-                          }}
-                          className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[10px] flex items-center gap-1 transition-colors"
-                        >
-                          <Edit2 className="w-3 h-3" /> Editar
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  <span className="bg-red-950 text-red-400 border border-red-800 px-2.5 py-1 rounded text-xs font-bold">
+                    {r.role_name}
+                  </span>
 
-                  {!isDefault ? (
-                    <button
-                      onClick={() => handleDeleteRole(r.role_name)}
-                      className="p-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors flex items-center gap-1 text-[11px]"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> Excluir
-                    </button>
-                  ) : (
-                    <span className="text-[10px] text-zinc-600 italic">Padrão</span>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {!isDefault && (
+                      <button
+                        onClick={() => {
+                          setEditingRoleName(r.role_name);
+                          setTempRoleName(r.role_name);
+                        }}
+                        className="px-2 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-[11px] flex items-center gap-1 transition-colors"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" /> Editar
+                      </button>
+                    )}
+                    {!isDefault ? (
+                      <button
+                        onClick={() => handleDeleteRole(r.role_name)}
+                        className="p-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors flex items-center gap-1 text-[11px]"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Excluir
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-zinc-600 italic">Padrão</span>
+                    )}
+                  </div>
                 </div>
 
+                {editingRoleName === r.role_name && (
+                  <div className="flex items-center gap-2 bg-zinc-900 p-2 rounded-lg border border-zinc-800">
+                    <input
+                      type="text"
+                      value={tempRoleName}
+                      onChange={(e) => setTempRoleName(e.target.value)}
+                      className="flex-1 bg-black border border-zinc-700 px-2 py-1 rounded text-xs text-white focus:outline-none focus:border-red-600"
+                    />
+                    <button
+                      onClick={() => handleUpdateRoleName(r.role_name)}
+                      className="p-1.5 bg-green-950 text-green-400 rounded hover:bg-green-900"
+                      title="Salvar"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setEditingRoleName(null)}
+                      className="p-1.5 bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700"
+                      title="Cancelar"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-2 text-xs">
+                  <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                    <span className="text-zinc-400">Agendamentos</span>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(r.can_manage_bookings)}
+                      onChange={() => handleTogglePermission(r.role_name, "can_manage_bookings", Boolean(r.can_manage_bookings))}
+                      className="w-4 h-4 accent-red-600 cursor-pointer"
+                    />
+                  </label>
+
                   <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
                     <span className="text-zinc-400">Serviços</span>
                     <input
@@ -229,7 +243,7 @@ export function PermissionsTab() {
                   </label>
 
                   <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
-                    <span className="text-zinc-400">Horários / Agenda</span>
+                    <span className="text-zinc-400">Horários</span>
                     <input
                       type="checkbox"
                       checked={hasScheduleAccess}
@@ -238,7 +252,7 @@ export function PermissionsTab() {
                     />
                   </label>
 
-                  <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                  <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80 col-span-2">
                     <span className="text-zinc-400">Relatórios</span>
                     <input
                       type="checkbox"
@@ -255,13 +269,14 @@ export function PermissionsTab() {
 
         {/* Versão Desktop (Tabela) */}
         <div className="hidden sm:block w-full overflow-x-auto pb-2">
-          <table className="w-full min-w-[600px] text-left border-collapse">
+          <table className="w-full min-w-[700px] text-left border-collapse">
             <thead>
               <tr className="border-b border-zinc-800 text-[11px] text-zinc-400 uppercase">
                 <th className="p-3">Cargo</th>
+                <th className="p-3 text-center">Agendamentos</th>
                 <th className="p-3 text-center">Serviços</th>
                 <th className="p-3 text-center">Colaboradores</th>
-                <th className="p-3 text-center">Horários / Agenda</th>
+                <th className="p-3 text-center">Horários</th>
                 <th className="p-3 text-center">Relatórios</th>
                 <th className="p-3 text-center">Ações</th>
               </tr>
@@ -296,23 +311,18 @@ export function PermissionsTab() {
                           </button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <span className="bg-red-950 text-red-400 border border-red-800 px-2 py-1 rounded text-[11px]">
-                            {r.role_name}
-                          </span>
-                          {!isDefault && (
-                            <button
-                              onClick={() => {
-                                setEditingRoleName(r.role_name);
-                                setTempRoleName(r.role_name);
-                              }}
-                              className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[10px] flex items-center gap-1 transition-colors"
-                            >
-                              <Edit2 className="w-3 h-3" /> Editar
-                            </button>
-                          )}
-                        </div>
+                        <span className="bg-red-950 text-red-400 border border-red-800 px-2.5 py-1 rounded text-[11px]">
+                          {r.role_name}
+                        </span>
                       )}
+                    </td>
+                    <td className="p-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(r.can_manage_bookings)}
+                        onChange={() => handleTogglePermission(r.role_name, "can_manage_bookings", Boolean(r.can_manage_bookings))}
+                        className="w-4 h-4 accent-red-600 cursor-pointer"
+                      />
                     </td>
                     <td className="p-3 text-center">
                       <input
@@ -347,16 +357,29 @@ export function PermissionsTab() {
                       />
                     </td>
                     <td className="p-3 text-center">
-                      {!isDefault ? (
-                        <button
-                          onClick={() => handleDeleteRole(r.role_name)}
-                          className="p-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px]"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Excluir
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-zinc-600 italic">Padrão</span>
-                      )}
+                      <div className="flex items-center justify-center gap-1.5">
+                        {!isDefault && (
+                          <button
+                            onClick={() => {
+                              setEditingRoleName(r.role_name);
+                              setTempRoleName(r.role_name);
+                            }}
+                            className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px]"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" /> Editar
+                          </button>
+                        )}
+                        {!isDefault ? (
+                          <button
+                            onClick={() => handleDeleteRole(r.role_name)}
+                            className="px-2.5 py-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px]"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Excluir
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-zinc-600 italic">Padrão</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
