@@ -107,33 +107,29 @@ export function PermissionsTab() {
     }
   };
 
-  const handleDeleteRole = async (role: any) => {
+ const handleDeleteRole = async (role: any) => {
     if (role.role_name === "ADM" || role.role_name === "Barbeiro") {
       alert("Este cargo padrão do sistema não pode ser excluído.");
       return;
     }
 
-    // IMPRIME NO CONSOLE PARA VERIFICAR SE O ID EXISTE DE FATO
-    console.log("Tentando excluir cargo:", role);
-    console.log("ID utilizado para exclusão:", role.id || role.role_name);
-
     if (confirm(`Tem certeza que deseja excluir o cargo ${role.role_name}?`)) {
-      // Tenta deletar usando o ID ou o role_name caso o ID venha vazio
-      const targetIdentifier = role.id ? { column: "id", value: role.id } : { column: "role_name", value: role.role_name };
-
-      const { data, error, count } = await supabase
+      // Adicionamos o .select() para garantir que o Supabase execute e retorne o item deletado
+      const { data, error } = await supabase
         .from("role_permissions")
         .delete()
-        .eq(targetIdentifier.column, targetIdentifier.value);
+        .eq("id", role.id)
+        .select();
 
-      console.log("Resposta do Supabase - Erro:", error);
-      console.log("Resposta do Supabase - Dados retornados:", data);
-      console.log("Linhas afetadas:", count);
+      console.log("Retorno do delete com select:", { data, error });
 
       if (error) {
         alert("Erro ao excluir no banco: " + error.message);
+      } else if (!data || data.length === 0) {
+        alert("Aviso: O cargo não foi encontrado no banco de dados para exclusão.");
       } else {
-        setRoles((prevRoles) => prevRoles.filter((r) => r.id !== role.id && r.role_name !== role.role_name));
+        // Remove instantaneamente da tela após confirmar que o banco excluiu de fato
+        setRoles((prevRoles) => prevRoles.filter((r) => r.id !== role.id));
         alert("Cargo excluído com sucesso do banco!");
       }
     }
