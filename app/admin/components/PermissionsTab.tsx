@@ -113,20 +113,28 @@ export function PermissionsTab() {
       return;
     }
 
+    // IMPRIME NO CONSOLE PARA VERIFICAR SE O ID EXISTE DE FATO
+    console.log("Tentando excluir cargo:", role);
+    console.log("ID utilizado para exclusão:", role.id || role.role_name);
+
     if (confirm(`Tem certeza que deseja excluir o cargo ${role.role_name}?`)) {
-      // Deleta garantindo pelo ID único do registro no banco de dados
-      const { error } = await supabase
+      // Tenta deletar usando o ID ou o role_name caso o ID venha vazio
+      const targetIdentifier = role.id ? { column: "id", value: role.id } : { column: "role_name", value: role.role_name };
+
+      const { data, error, count } = await supabase
         .from("role_permissions")
         .delete()
-        .eq("id", role.id);
+        .eq(targetIdentifier.column, targetIdentifier.value);
+
+      console.log("Resposta do Supabase - Erro:", error);
+      console.log("Resposta do Supabase - Dados retornados:", data);
+      console.log("Linhas afetadas:", count);
 
       if (error) {
         alert("Erro ao excluir no banco: " + error.message);
-        console.error("Detalhes do erro Supabase:", error);
       } else {
-        // Remove instantaneamente da tela
-        setRoles((prevRoles) => prevRoles.filter((r) => r.id !== role.id));
-        alert("Cargo excluído com sucesso!");
+        setRoles((prevRoles) => prevRoles.filter((r) => r.id !== role.id && r.role_name !== role.role_name));
+        alert("Cargo excluído com sucesso do banco!");
       }
     }
   };
