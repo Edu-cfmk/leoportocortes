@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { Trash2, Plus, Edit2, Check, X } from "lucide-react";
 
 export function PermissionsTab() {
+  const [mounted, setMounted] = useState(false);
   const [roles, setRoles] = useState<any[]>([]);
   const [newRoleName, setNewRoleName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -12,7 +13,9 @@ export function PermissionsTab() {
   const [editingRoleName, setEditingRoleName] = useState<string | null>(null);
   const [tempRoleName, setTempRoleName] = useState("");
 
+  // Evita erros de hidratação (SSR vs Client)
   useEffect(() => {
+    setMounted(true);
     fetchRolesAndPermissions();
   }, []);
 
@@ -55,7 +58,6 @@ export function PermissionsTab() {
   const handleTogglePermission = async (roleName: string, field: string, currentValue: boolean) => {
     const newValue = !currentValue;
 
-    // Atualização otimista imediata na tela
     setRoles((prevRoles) =>
       prevRoles.map((r) => {
         if (r.role_name === roleName) {
@@ -83,7 +85,7 @@ export function PermissionsTab() {
 
     if (error) {
       alert("Erro ao atualizar permissão: " + error.message);
-      fetchRolesAndPermissions(); // Reverte em caso de erro
+      fetchRolesAndPermissions();
     }
   };
 
@@ -120,8 +122,6 @@ export function PermissionsTab() {
         .eq("role_name", roleName)
         .select();
 
-      console.log("Resultado da exclusão:", { data, error });
-
       if (error) {
         alert("Erro ao excluir no banco: " + error.message);
       } else {
@@ -130,6 +130,11 @@ export function PermissionsTab() {
       }
     }
   };
+
+  // Enquanto não montar no cliente, retorna vazio para evitar conflito de SSR
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
@@ -183,6 +188,7 @@ export function PermissionsTab() {
 
                   <div className="flex items-center gap-1.5">
                     <button
+                      type="button"
                       onClick={() => {
                         setEditingRoleName(r.role_name);
                         setTempRoleName(r.role_name);
@@ -193,6 +199,7 @@ export function PermissionsTab() {
                     </button>
                     {!isDefault ? (
                       <button
+                        type="button"
                         onClick={() => handleDeleteRole(r.role_name)}
                         className="p-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors flex items-center gap-1 text-[11px]"
                       >
@@ -213,6 +220,7 @@ export function PermissionsTab() {
                       className="flex-1 bg-black border border-zinc-700 px-2 py-1 rounded text-xs text-white focus:outline-none focus:border-red-600"
                     />
                     <button
+                      type="button"
                       onClick={() => handleUpdateRoleName(r.role_name)}
                       className="p-1.5 bg-green-950 text-green-400 rounded hover:bg-green-900"
                       title="Salvar"
@@ -220,6 +228,7 @@ export function PermissionsTab() {
                       <Check className="w-4 h-4" />
                     </button>
                     <button
+                      type="button"
                       onClick={() => setEditingRoleName(null)}
                       className="p-1.5 bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700"
                       title="Cancelar"
@@ -316,12 +325,14 @@ export function PermissionsTab() {
                             className="bg-black border border-zinc-700 px-2 py-1 rounded text-xs text-white w-28 focus:outline-none focus:border-red-600"
                           />
                           <button
+                            type="button"
                             onClick={() => handleUpdateRoleName(r.role_name)}
                             className="p-1 bg-green-950 text-green-400 rounded hover:bg-green-900"
                           >
                             <Check className="w-3.5 h-3.5" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => setEditingRoleName(null)}
                             className="p-1 bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700"
                           >
@@ -377,6 +388,7 @@ export function PermissionsTab() {
                     <td className="p-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         <button
+                          type="button"
                           onClick={() => {
                             setEditingRoleName(r.role_name);
                             setTempRoleName(r.role_name);
@@ -387,6 +399,7 @@ export function PermissionsTab() {
                         </button>
                         {!isDefault ? (
                           <button
+                            type="button"
                             onClick={() => handleDeleteRole(r.role_name)}
                             className="px-2.5 py-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px]"
                           >
