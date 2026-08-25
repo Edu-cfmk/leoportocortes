@@ -114,10 +114,19 @@ export function PermissionsTab() {
     }
 
     if (confirm(`Tem certeza que deseja excluir o cargo ${roleName}?`)) {
-      const { error } = await supabase.from("role_permissions").delete().eq("role_name", roleName);
+      console.log("Tentando excluir o cargo:", roleName);
+      
+      const { data, error } = await supabase
+        .from("role_permissions")
+        .delete()
+        .eq("role_name", roleName);
+
       if (error) {
-        alert("Erro ao excluir. Verifique se há algum usuário utilizando este cargo: " + error.message);
+        console.error("Erro detalhado do Supabase:", error);
+        alert("Erro ao excluir no banco: " + error.message);
       } else {
+        console.log("Excluído com sucesso:", data);
+        alert("Cargo excluído com sucesso!");
         fetchRolesAndPermissions();
       }
     }
