@@ -114,7 +114,6 @@ export default function AdminPage() {
   const fetchBarbers = async () => {
     const { data } = await supabase.from("barbers").select("*");
     if (data) {
-      // Se não for DEV, oculta o perfil DEV da listagem de colaboradores
       const filtered = data.filter((b: any) => {
         if (isDev) return true;
         const nameLower = b.name.toLowerCase();
@@ -237,9 +236,10 @@ export default function AdminPage() {
     );
   }
 
+  const canSeeBookings = hasFullAccess || rolePermissions?.can_manage_bookings;
   const canSeeServices = hasFullAccess || rolePermissions?.can_manage_services;
   const canSeeBarbers = hasFullAccess || rolePermissions?.can_manage_barbers;
-  const canSeeSchedules = hasFullAccess || rolePermissions?.can_manage_schedules; 
+  const canSeeSchedules = hasFullAccess || rolePermissions?.can_manage_schedules || rolePermissions?.can_manage_schedule; 
   const canSeeReports = hasFullAccess || rolePermissions?.can_manage_reports;
 
   return (
@@ -279,12 +279,14 @@ export default function AdminPage() {
         {/* Abas de Navegação: Grid elegante no Mobile / Botões horizontais no Desktop */}
         <div className="border-b border-zinc-800 pb-4">
           <div className="grid grid-cols-2 gap-2 sm:hidden">
-            <button
-              onClick={() => setActiveTab("bookings")}
-              className={`p-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === "bookings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-300 border border-zinc-800"}`}
-            >
-              <Calendar className="w-4 h-4" /> Agendamentos
-            </button>
+            {canSeeBookings && (
+              <button
+                onClick={() => setActiveTab("bookings")}
+                className={`p-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === "bookings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-300 border border-zinc-800"}`}
+              >
+                <Calendar className="w-4 h-4" /> Agendamentos
+              </button>
+            )}
 
             {canSeeServices && (
               <button
@@ -333,12 +335,14 @@ export default function AdminPage() {
           </div>
 
           <div className="hidden sm:flex items-center gap-2 overflow-x-auto">
-            <button
-              onClick={() => setActiveTab("bookings")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "bookings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
-            >
-              <Calendar className="w-4 h-4" /> Agendamentos
-            </button>
+            {canSeeBookings && (
+              <button
+                onClick={() => setActiveTab("bookings")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "bookings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+              >
+                <Calendar className="w-4 h-4" /> Agendamentos
+              </button>
+            )}
 
             {canSeeServices && (
               <button
@@ -387,8 +391,8 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Conteúdo das Abas */}
-        {activeTab === "bookings" && (
+        {/* Conteúdo das Abas com verificação de segurança */}
+        {activeTab === "bookings" && canSeeBookings && (
           <BookingsTab
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
@@ -405,7 +409,7 @@ export default function AdminPage() {
             schedules={schedules}
             setSchedules={setSchedules}
             handleSaveSettings={async () => {
-              if (!hasFullAccess && !rolePermissions?.can_manage_schedules) {
+              if (!hasFullAccess && !rolePermissions?.can_manage_schedules && !rolePermissions?.can_manage_schedule) {
                 alert("Você não tem permissão para alterar os horários.");
                 return;
               }
