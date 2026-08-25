@@ -107,29 +107,25 @@ export function PermissionsTab() {
     }
   };
 
- const handleDeleteRole = async (role: any) => {
-    if (role.role_name === "ADM" || role.role_name === "Barbeiro") {
+  const handleDeleteRole = async (roleName: string) => {
+    if (roleName === "ADM" || roleName === "Barbeiro") {
       alert("Este cargo padrão do sistema não pode ser excluído.");
       return;
     }
 
-    if (confirm(`Tem certeza que deseja excluir o cargo ${role.role_name}?`)) {
-      // Adicionamos o .select() para garantir que o Supabase execute e retorne o item deletado
+    if (confirm(`Tem certeza que deseja excluir o cargo ${roleName}?`)) {
       const { data, error } = await supabase
         .from("role_permissions")
         .delete()
-        .eq("id", role.id)
+        .eq("role_name", roleName)
         .select();
 
-      console.log("Retorno do delete com select:", { data, error });
+      console.log("Resultado da exclusão:", { data, error });
 
       if (error) {
         alert("Erro ao excluir no banco: " + error.message);
-      } else if (!data || data.length === 0) {
-        alert("Aviso: O cargo não foi encontrado no banco de dados para exclusão.");
       } else {
-        // Remove instantaneamente da tela após confirmar que o banco excluiu de fato
-        setRoles((prevRoles) => prevRoles.filter((r) => r.id !== role.id));
+        setRoles((prevRoles) => prevRoles.filter((r) => r.role_name !== roleName));
         alert("Cargo excluído com sucesso do banco!");
       }
     }
@@ -197,7 +193,7 @@ export function PermissionsTab() {
                     </button>
                     {!isDefault ? (
                       <button
-                        onClick={() => handleDeleteRole(r)}
+                        onClick={() => handleDeleteRole(r.role_name)}
                         className="p-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors flex items-center gap-1 text-[11px]"
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Excluir
@@ -391,7 +387,7 @@ export function PermissionsTab() {
                         </button>
                         {!isDefault ? (
                           <button
-                            onClick={() => handleDeleteRole(r)}
+                            onClick={() => handleDeleteRole(r.role_name)}
                             className="px-2.5 py-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px]"
                           >
                             <Trash2 className="w-3.5 h-3.5" /> Excluir
