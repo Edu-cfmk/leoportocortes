@@ -46,15 +46,12 @@ export default function AdminPage() {
     "bookings" | "services" | "barbers" | "settings" | "permissions" | "reports"
   >("bookings");
 
+  const [rolePermissions, setRolePermissions] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
 
   const [services, setServices] = useState<any[]>([]);
-  const [newServiceName, setNewServiceName] = useState("");
-  const [newServicePrice, setNewServicePrice] = useState("");
-
-  // Estados para horários e colaboradores
   const [barbers, setBarbers] = useState<any[]>([]);
   const [selectedBarber, setSelectedBarber] = useState<string>("geral");
   const [schedules, setSchedules] = useState<DaySchedule[]>(defaultSchedules);
@@ -72,13 +69,39 @@ export default function AdminPage() {
     }
   }, []);
 
+  // Busca as permissões específicas do cargo logado no Supabase
   useEffect(() => {
     if (session) {
+      fetchRolePermissions();
       fetchBarbers();
-      // Sempre carrega os agendamentos ao iniciar para alimentar os relatórios em qualquer aba
       fetchAllBookingsForReports();
     }
   }, [session]);
+
+  const fetchRolePermissions = async () => {
+    if (!session) return;
+    if (hasFullAccess) {
+      // ADM e DEV tem acesso total automático
+      setRolePermissions({
+        can_manage_services: true,
+        can_manage_barbers: true,
+        can_manage_schedule: true,
+        can_manage_schedules: true,
+        can_manage_reports: true,
+      });
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("role_permissions")
+      .select("*")
+      .eq("role_name", session.role)
+      .maybeSingle();
+
+    if (!error && data) {
+      setRolePermissions(data);
+    }
+  };
 
   useEffect(() => {
     if (session) {
@@ -90,7 +113,15 @@ export default function AdminPage() {
 
   const fetchBarbers = async () => {
     const { data } = await supabase.from("barbers").select("*");
-    if (data) setBarbers(data);
+    if (data) {
+      // Se não for ADM/DEV, esconde o usuário desenvolvedor/admin principal da listagem
+      const filtered = data.filter((b: any) => {
+        if (hasFullAccess) return true;
+        const nameLower = b.name.toLowerCase();
+        return !nameLower.includes("eduardo") && !nameLower.includes("leo porto") && !nameLower.includes("dev");
+      });
+      setBarbers(filtered);
+    }
   };
 
   const fetchSchedulesForContext = async () => {
@@ -156,29 +187,6 @@ export default function AdminPage() {
     setLoginLoading(false);
   };
 
-  const fetchBookings = async () => {
-    setLoading(true);
-    const today = new Date().toISOString().split("T")[0];
-
-    let query = supabase.from("bookings").select("*");
-
-    if (selectedDate) {
-      query = query.eq("booking_date", selectedDate);
-    } else {
-      query = query.or(`status.eq.pending,booking_date.gte.${today}`);
-    }
-
-    const { data, error } = await query
-      .order("booking_date", { ascending: true })
-      .order("booking_time", { ascending: true });
-
-    if (!error) {
-      setBookings(data || []);
-    }
-    setLoading(false);
-  };
-
-  // Função para buscar todos os agendamentos (necessário para relatórios completos)
   const fetchAllBookingsForReports = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -229,6 +237,12 @@ export default function AdminPage() {
     );
   }
 
+  // Define quais abas o usuário pode ver com base nas permissões do cargo
+  const canSeeServices = hasFullAccess || rolePermissions?.can_manage_services;
+  const canSeeBarbers = hasFullAccess || rolePermissions?.can_manage_barbers;
+  const canSeeSchedules = hasFullAccess || rolePermissions?.can_manage_schedules || rolePermissions?.can_manage_schedule;
+  const canSeeReports = hasFullAccess || rolePermissions?.can_manage_reports;
+
   return (
     <div className="min-h-screen bg-black text-white p-4 sm:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -263,7 +277,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Abas de Navegação */}
+        {/* Abas de Navegação (Exibidas apenas se o usuário tiver permissão) */}
         <div className="flex items-center gap-2 border-b border-zinc-800 pb-3 overflow-x-auto">
           <button
             onClick={() => setActiveTab("bookings")}
@@ -271,30 +285,42 @@ export default function AdminPage() {
           >
             <Calendar className="w-4 h-4" /> Agendamentos
           </button>
-          <button
-            onClick={() => setActiveTab("services")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "services" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
-          >
-            <Wrench className="w-4 h-4" /> Serviços
-          </button>
-          <button
-            onClick={() => setActiveTab("barbers")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "barbers" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
-          >
-            <Users className="w-4 h-4" /> Colaboradores
-          </button>
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "settings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
-          >
-            <Clock className="w-4 h-4" /> Horários
-          </button>
-          <button
-            onClick={() => setActiveTab("reports")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "reports" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
-          >
-            <BarChart3 className="w-4 h-4" /> Relatórios
-          </button>
+
+          {canSeeServices && (
+            <button
+              onClick={() => setActiveTab("services")}
+              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "services" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+            >
+              <Wrench className="w-4 h-4" /> Serviços
+            </button>
+          )}
+
+          {canSeeBarbers && (
+            <button
+              onClick={() => setActiveTab("barbers")}
+              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "barbers" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+            >
+              <Users className="w-4 h-4" /> Colaboradores
+            </button>
+          )}
+
+          {canSeeSchedules && (
+            <button
+              onClick={() => setActiveTab("settings")}
+              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "settings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+            >
+              <Clock className="w-4 h-4" /> Horários
+            </button>
+          )}
+
+          {canSeeReports && (
+            <button
+              onClick={() => setActiveTab("reports")}
+              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "reports" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+            >
+              <BarChart3 className="w-4 h-4" /> Relatórios
+            </button>
+          )}
 
           {hasFullAccess && (
             <button
@@ -306,7 +332,7 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* Conteúdo das Abas */}
+        {/* Conteúdo das Abas com Proteção de Segurança */}
         {activeTab === "bookings" && (
           <BookingsTab
             selectedDate={selectedDate}
@@ -317,13 +343,18 @@ export default function AdminPage() {
             handleUpdateStatus={handleUpdateStatus}
           />
         )}
-        {activeTab === "services" && <ServicesTab />}
-        {activeTab === "barbers" && <BarbersTab />}
-        {activeTab === "settings" && (
+        {activeTab === "services" && canSeeServices && <ServicesTab />}
+        {activeTab === "barbers" && canSeeBarbers && <BarbersTab />}
+        {activeTab === "settings" && canSeeSchedules && (
           <SettingsTab
             schedules={schedules}
             setSchedules={setSchedules}
             handleSaveSettings={async () => {
+              if (!hasFullAccess && !rolePermissions?.can_manage_schedules) {
+                alert("Você não tem permissão para alterar os horários.");
+                return;
+              }
+
               const targetBarberId = selectedBarber === "geral" ? null : selectedBarber;
               const payload = schedules.map((item) => ({
                 barber_id: targetBarberId,
@@ -356,7 +387,7 @@ export default function AdminPage() {
             setSelectedBarber={setSelectedBarber}
           />
         )}
-        {activeTab === "reports" && <ReportsTab bookings={bookings} />}
+        {activeTab === "reports" && canSeeReports && <ReportsTab bookings={bookings} />}
         {activeTab === "permissions" && hasFullAccess && <PermissionsTab />}
       </div>
     </div>
