@@ -55,7 +55,7 @@ export function PermissionsTab() {
   const handleTogglePermission = async (roleName: string, field: string, currentValue: boolean) => {
     const newValue = !currentValue;
 
-    // Atualização otimista imediata na tela (evita que a página pule)
+    // Atualização otimista imediata na tela
     setRoles((prevRoles) =>
       prevRoles.map((r) => {
         if (r.role_name === roleName) {
@@ -83,7 +83,7 @@ export function PermissionsTab() {
 
     if (error) {
       alert("Erro ao atualizar permissão: " + error.message);
-      fetchRolesAndPermissions(); // Reverte em caso de erro real
+      fetchRolesAndPermissions(); // Reverte em caso de erro
     }
   };
 
@@ -107,23 +107,25 @@ export function PermissionsTab() {
     }
   };
 
-  const handleDeleteRole = async (roleName: string) => {
-    if (roleName === "ADM" || roleName === "Barbeiro") {
+  const handleDeleteRole = async (role: any) => {
+    if (role.role_name === "ADM" || role.role_name === "Barbeiro") {
       alert("Este cargo padrão do sistema não pode ser excluído.");
       return;
     }
 
-    if (confirm(`Tem certeza que deseja excluir o cargo ${roleName}?`)) {
+    if (confirm(`Tem certeza que deseja excluir o cargo ${role.role_name}?`)) {
+      // Deleta garantindo pelo ID único do registro no banco de dados
       const { error } = await supabase
         .from("role_permissions")
         .delete()
-        .eq("role_name", roleName);
+        .eq("id", role.id);
 
       if (error) {
         alert("Erro ao excluir no banco: " + error.message);
+        console.error("Detalhes do erro Supabase:", error);
       } else {
-        // Remove instantaneamente da tela sem precisar de reload completo
-        setRoles((prevRoles) => prevRoles.filter((r) => r.role_name !== roleName));
+        // Remove instantaneamente da tela
+        setRoles((prevRoles) => prevRoles.filter((r) => r.id !== role.id));
         alert("Cargo excluído com sucesso!");
       }
     }
@@ -191,7 +193,7 @@ export function PermissionsTab() {
                     </button>
                     {!isDefault ? (
                       <button
-                        onClick={() => handleDeleteRole(r.role_name)}
+                        onClick={() => handleDeleteRole(r)}
                         className="p-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors flex items-center gap-1 text-[11px]"
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Excluir
@@ -385,7 +387,7 @@ export function PermissionsTab() {
                         </button>
                         {!isDefault ? (
                           <button
-                            onClick={() => handleDeleteRole(r.role_name)}
+                            onClick={() => handleDeleteRole(r)}
                             className="px-2.5 py-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px]"
                           >
                             <Trash2 className="w-3.5 h-3.5" /> Excluir
