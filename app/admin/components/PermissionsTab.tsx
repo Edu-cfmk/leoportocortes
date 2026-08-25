@@ -20,14 +20,22 @@ export function PermissionsTab() {
 
   const fetchPermissions = async () => {
     const { data, error } = await supabase.from("role_permissions").select("*").order("role_name");
-    if (!error) {
-      setPermissions(data || []);
+    if (!error && data) {
+      // Filtra para esconder o cargo DEV completamente da lista
+      const filtered = data.filter((p: any) => p.role_name !== "DEV");
+      setPermissions(filtered);
     }
   };
 
   const handleAddRole = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRoleName.trim()) return;
+
+    // Impede criar cargo com nome DEV por segurança
+    if (newRoleName.trim().toUpperCase() === "DEV") {
+      alert("Nome de cargo reservado.");
+      return;
+    }
 
     setLoading(true);
     const { error } = await supabase.from("role_permissions").insert([
@@ -63,8 +71,8 @@ export function PermissionsTab() {
   };
 
   const handleDeleteRole = async (id: string, roleName: string) => {
-    if (roleName === "ADM" || roleName === "DEV") {
-      alert("Não é possível excluir os cargos principais do sistema.");
+    if (roleName === "ADM") {
+      alert("Não é possível excluir o cargo principal do sistema.");
       return;
     }
 
@@ -154,7 +162,7 @@ export function PermissionsTab() {
                     />
                   </td>
                   <td className="p-3 text-center">
-                    {p.role_name !== "ADM" && p.role_name !== "DEV" && (
+                    {p.role_name !== "ADM" && (
                       <button
                         onClick={() => handleDeleteRole(p.id, p.role_name)}
                         className="text-zinc-500 hover:text-red-500 font-bold"
