@@ -16,7 +16,11 @@ export function BarbersTab() {
   const sessionData = typeof window !== "undefined" ? localStorage.getItem("admin_session") : null;
   const session = sessionData ? JSON.parse(sessionData) : null;
   
-  // Apenas DEV e OWNER (Léo) podem gerenciar acessos
+  // Verifica se quem está logado é VOCÊ (o desenvolvedor principal)
+  // Altere "EduardoDev" para exatamente o nome de usuário que você usa para logar
+  const isSupremeDev = session?.role === "DEV" || session?.username === "EduardoDev";
+  
+  // Outros cargos administrativos (como ADM do Léo) têm acesso aos botões, mas não são o DEV supremo
   const hasFullAccess = session?.role === "ADM" || session?.role === "DEV";
 
   useEffect(() => {
@@ -42,7 +46,6 @@ export function BarbersTab() {
       role,
     };
 
-    // Só atualiza a senha se preencheu uma nova
     if (password) {
       payload.password = password;
     }
@@ -85,7 +88,7 @@ export function BarbersTab() {
     }
     setEditingId(user.id);
     setUsername(user.username || "");
-    setPassword(""); // Mantém limpo
+    setPassword(""); 
     setRole(user.role || "Barbeiro");
   };
 
@@ -95,7 +98,6 @@ export function BarbersTab() {
       return;
     }
 
-    // Trava de segurança para não excluir o DEV principal sem querer
     if (userRole === "DEV") {
       alert("Não é possível excluir o usuário de desenvolvimento.");
       return;
@@ -111,9 +113,26 @@ export function BarbersTab() {
     }
   };
 
+  // FILTRAGEM RESTRITA:
+  // Se quem estiver logado for VOCÊ (isSupremeDev), você vê tudo.
+  // Se for QUALQUER OUTRA PESSOA (mesmo o Léo que é ADM, Barbeiro, Recepcionista, etc.), 
+  // o sistema esconde permanentemente o seu usuário (cargo DEV ou nome EduardoDev).
+  const filteredUsers = users.filter((user) => {
+    if (isSupremeDev) return true;
+
+    const nameLower = user.username.toLowerCase();
+    const roleUpper = user.role.toUpperCase();
+
+    // Esconde o seu usuário supremo de qualquer outra visão
+    if (roleUpper === "DEV" || nameLower.includes("eduardodev")) {
+      return false;
+    }
+
+    return true;
+  });
+
   return (
     <div className="space-y-6">
-      {/* Formulário de cadastro/edição (Visível apenas para OWNER e DEV) */}
       {hasFullAccess ? (
         <form onSubmit={handleSaveUser} className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl space-y-4">
           <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">
@@ -187,19 +206,17 @@ export function BarbersTab() {
         </h3>
         
         <div className="space-y-3">
-          {users.map((user) => (
+          {filteredUsers.map((user) => (
             <div key={user.id} className="flex items-center justify-between bg-black border border-zinc-800 p-4 rounded-lg">
               <div>
                 <h4 className="font-bold text-white text-sm flex items-center gap-2">
                   {user.username}
-                  {/* Tag com fundo vermelho aplicada a todos os cargos */}
                   <span className="text-[10px] bg-red-950 text-red-400 border border-red-800 px-2 py-0.5 rounded font-bold">
                     {user.role}
                   </span>
                 </h4>
               </div>
               
-              {/* Botões de Ação */}
               {hasFullAccess && (
                 <div className="flex items-center gap-2">
                   <button 

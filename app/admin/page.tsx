@@ -237,10 +237,11 @@ export default function AdminPage() {
     );
   }
 
-  // Define quais abas o usuário pode ver com base nas permissões do cargo
+  // Define quais abas o usuário pode ver com base estrita nas permissões do banco
   const canSeeServices = hasFullAccess || rolePermissions?.can_manage_services;
   const canSeeBarbers = hasFullAccess || rolePermissions?.can_manage_barbers;
-  const canSeeSchedules = hasFullAccess || rolePermissions?.can_manage_schedules || rolePermissions?.can_manage_schedule;
+  // Corrigido para checar a coluna correta de horários
+  const canSeeSchedules = hasFullAccess || rolePermissions?.can_manage_schedules; 
   const canSeeReports = hasFullAccess || rolePermissions?.can_manage_reports;
 
   return (
