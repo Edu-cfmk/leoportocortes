@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Edit2, Check, X } from "lucide-react";
 
 export function PermissionsTab() {
   const [roles, setRoles] = useState<any[]>([]);
   const [newRoleName, setNewRoleName] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Estados para edição inline do nome do cargo
+  const [editingRoleName, setEditingRoleName] = useState<string | null>(null);
+  const [tempRoleName, setTempRoleName] = useState("");
 
   useEffect(() => {
     fetchRolesAndPermissions();
@@ -16,7 +20,7 @@ export function PermissionsTab() {
   const fetchRolesAndPermissions = async () => {
     const { data, error } = await supabase.from("role_permissions").select("*");
     if (!error && data) {
-      // Oculta o cargo DEV completamente da matriz de gerenciamento
+      // Oculta o cargo DEV completamente da matriz
       const filteredRoles = data.filter((r: any) => r.role_name !== "DEV");
       setRoles(filteredRoles);
     }
@@ -34,7 +38,6 @@ export function PermissionsTab() {
         role_name: formattedRole,
         can_manage_services: false,
         can_manage_barbers: false,
-        can_manage_bookings: false,
         can_manage_schedule: false,
         can_manage_schedules: false,
         can_manage_reports: false,
@@ -59,6 +62,26 @@ export function PermissionsTab() {
     if (error) {
       alert("Erro ao atualizar permissão: " + error.message);
     } else {
+      fetchRolesAndPermissions();
+    }
+  };
+
+  const handleUpdateRoleName = async (oldName: string) => {
+    if (!tempRoleName.trim() || tempRoleName === oldName) {
+      setEditingRoleName(null);
+      return;
+    }
+
+    const newName = tempRoleName.trim();
+    const { error } = await supabase
+      .from("role_permissions")
+      .update({ role_name: newName })
+      .eq("role_name", oldName);
+
+    if (error) {
+      alert("Erro ao renomear cargo: " + error.message);
+    } else {
+      setEditingRoleName(null);
       fetchRolesAndPermissions();
     }
   };
@@ -112,18 +135,56 @@ export function PermissionsTab() {
             Matriz de Permissões por Cargo
           </h3>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            Gerencie o acesso de cada função no painel administrativo.
+            Gerencie o acesso e renomeie funções do painel administrativo.
           </p>
         </div>
 
-        {/* Versão Compacta/Cards para Celular (Elimina rolagem horizontal) */}
+        {/* Versão Compacta/Cards para Celular */}
         <div className="space-y-4 sm:hidden">
           {roles.map((r) => (
             <div key={r.id || r.role_name} className="bg-black/60 border border-zinc-800 p-4 rounded-xl space-y-3">
               <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
-                <span className="bg-red-950 text-red-400 border border-red-800 px-2.5 py-1 rounded text-xs font-bold">
-                  {r.role_name}
-                </span>
+                {editingRoleName === r.role_name ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={tempRoleName}
+                      onChange={(e) => setTempRoleName(e.target.value)}
+                      className="bg-black border border-zinc-700 px-2 py-1 rounded text-xs text-white w-28 focus:outline-none focus:border-red-600"
+                    />
+                    <button
+                      onClick={() => handleUpdateRoleName(r.role_name)}
+                      className="p-1 bg-green-950 text-green-400 rounded hover:bg-green-900"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setEditingRoleName(null)}
+                      className="p-1 bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="bg-red-950 text-red-400 border border-red-800 px-2.5 py-1 rounded text-xs font-bold">
+                      {r.role_name}
+                    </span>
+                    {r.role_name !== "ADM" && r.role_name !== "Barbeiro" && (
+                      <button
+                        onClick={() => {
+                          setEditingRoleName(r.role_name);
+                          setTempRoleName(r.role_name);
+                        }}
+                        className="text-zinc-500 hover:text-white"
+                        title="Editar nome"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {r.role_name !== "ADM" && r.role_name !== "Barbeiro" ? (
                   <button
                     onClick={() => handleDeleteRole(r.role_name)}
@@ -158,16 +219,6 @@ export function PermissionsTab() {
                 </label>
 
                 <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
-                  <span className="text-zinc-400">Agendamentos</span>
-                  <input
-                    type="checkbox"
-                    checked={r.can_manage_bookings ?? true}
-                    onChange={() => handleTogglePermission(r.role_name, "can_manage_bookings", r.can_manage_bookings ?? true)}
-                    className="w-4 h-4 accent-red-600 cursor-pointer"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
                   <span className="text-zinc-400">Horários</span>
                   <input
                     type="checkbox"
@@ -177,7 +228,7 @@ export function PermissionsTab() {
                   />
                 </label>
 
-                <label className="col-span-2 flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
                   <span className="text-zinc-400">Relatórios</span>
                   <input
                     type="checkbox"
@@ -191,7 +242,7 @@ export function PermissionsTab() {
           ))}
         </div>
 
-        {/* Versão Tabela Tradicional (Apenas Desktop) */}
+        {/* Versão Tabela Desktop */}
         <div className="hidden sm:block w-full overflow-x-auto pb-2">
           <table className="w-full min-w-[600px] text-left border-collapse">
             <thead>
@@ -199,7 +250,6 @@ export function PermissionsTab() {
                 <th className="p-3">Cargo</th>
                 <th className="p-3 text-center">Serviços</th>
                 <th className="p-3 text-center">Colaboradores</th>
-                <th className="p-3 text-center">Agendamentos</th>
                 <th className="p-3 text-center">Horários</th>
                 <th className="p-3 text-center">Relatórios</th>
                 <th className="p-3 text-center">Ações</th>
@@ -209,9 +259,46 @@ export function PermissionsTab() {
               {roles.map((r) => (
                 <tr key={r.id || r.role_name} className="hover:bg-black/40 transition-colors">
                   <td className="p-3 font-bold text-white whitespace-nowrap">
-                    <span className="bg-red-950 text-red-400 border border-red-800 px-2 py-1 rounded text-[11px]">
-                      {r.role_name}
-                    </span>
+                    {editingRoleName === r.role_name ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={tempRoleName}
+                          onChange={(e) => setTempRoleName(e.target.value)}
+                          className="bg-black border border-zinc-700 px-2 py-1 rounded text-xs text-white w-28 focus:outline-none focus:border-red-600"
+                        />
+                        <button
+                          onClick={() => handleUpdateRoleName(r.role_name)}
+                          className="p-1 bg-green-950 text-green-400 rounded hover:bg-green-900"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setEditingRoleName(null)}
+                          className="p-1 bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="bg-red-950 text-red-400 border border-red-800 px-2 py-1 rounded text-[11px]">
+                          {r.role_name}
+                        </span>
+                        {r.role_name !== "ADM" && r.role_name !== "Barbeiro" && (
+                          <button
+                            onClick={() => {
+                              setEditingRoleName(r.role_name);
+                              setTempRoleName(r.role_name);
+                            }}
+                            className="text-zinc-500 hover:text-white"
+                            title="Editar nome"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="p-3 text-center">
                     <input
@@ -226,14 +313,6 @@ export function PermissionsTab() {
                       type="checkbox"
                       checked={r.can_manage_barbers}
                       onChange={() => handleTogglePermission(r.role_name, "can_manage_barbers", r.can_manage_barbers)}
-                      className="w-4 h-4 accent-red-600 cursor-pointer"
-                    />
-                  </td>
-                  <td className="p-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={r.can_manage_bookings ?? true}
-                      onChange={() => handleTogglePermission(r.role_name, "can_manage_bookings", r.can_manage_bookings ?? true)}
                       className="w-4 h-4 accent-red-600 cursor-pointer"
                     />
                   </td>
