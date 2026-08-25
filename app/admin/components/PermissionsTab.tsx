@@ -13,7 +13,6 @@ export function PermissionsTab() {
   const [editingRoleName, setEditingRoleName] = useState<string | null>(null);
   const [tempRoleName, setTempRoleName] = useState("");
 
-  // Evita erros de hidratação (SSR vs Client)
   useEffect(() => {
     setMounted(true);
     fetchRolesAndPermissions();
@@ -116,11 +115,10 @@ export function PermissionsTab() {
     }
 
     if (confirm(`Tem certeza que deseja excluir o cargo ${roleName}?`)) {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("role_permissions")
         .delete()
-        .eq("role_name", roleName)
-        .select();
+        .eq("role_name", roleName);
 
       if (error) {
         alert("Erro ao excluir no banco: " + error.message);
@@ -131,7 +129,6 @@ export function PermissionsTab() {
     }
   };
 
-  // Enquanto não montar no cliente, retorna vazio para evitar conflito de SSR
   if (!mounted) {
     return null;
   }
