@@ -240,7 +240,6 @@ export default function AdminPage() {
   // Define quais abas o usuário pode ver com base estrita nas permissões do banco
   const canSeeServices = hasFullAccess || rolePermissions?.can_manage_services;
   const canSeeBarbers = hasFullAccess || rolePermissions?.can_manage_barbers;
-  // Corrigido para checar a coluna correta de horários
   const canSeeSchedules = hasFullAccess || rolePermissions?.can_manage_schedules; 
   const canSeeReports = hasFullAccess || rolePermissions?.can_manage_reports;
 
@@ -278,59 +277,79 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Abas de Navegação (Exibidas apenas se o usuário tiver permissão) */}
-        <div className="flex items-center gap-2 border-b border-zinc-800 pb-3 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab("bookings")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "bookings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
-          >
-            <Calendar className="w-4 h-4" /> Agendamentos
-          </button>
-
-          {canSeeServices && (
-            <button
-              onClick={() => setActiveTab("services")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "services" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+        {/* Abas de Navegação Responsivas (Select no celular / Botões no desktop) */}
+        <div className="border-b border-zinc-800 pb-3">
+          {/* Versão Celular: Select rápido e elegante */}
+          <div className="block sm:hidden">
+            <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Navegar no Painel:</label>
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value as any)}
+              className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-lg p-3 text-xs font-bold focus:outline-none focus:border-red-600"
             >
-              <Wrench className="w-4 h-4" /> Serviços
-            </button>
-          )}
+              <option value="bookings">📅 Agendamentos</option>
+              {canSeeServices && <option value="services">🛠️ Serviços</option>}
+              {canSeeBarbers && <option value="barbers">👥 Colaboradores</option>}
+              {canSeeSchedules && <option value="settings">⏰ Horários</option>}
+              {canSeeReports && <option value="reports">📊 Relatórios</option>}
+              {hasFullAccess && <option value="permissions">🛡️ Permissões</option>}
+            </select>
+          </div>
 
-          {canSeeBarbers && (
+          {/* Versão Desktop: Botões horizontais tradicionais */}
+          <div className="hidden sm:flex items-center gap-2 overflow-x-auto">
             <button
-              onClick={() => setActiveTab("barbers")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "barbers" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+              onClick={() => setActiveTab("bookings")}
+              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "bookings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
             >
-              <Users className="w-4 h-4" /> Colaboradores
+              <Calendar className="w-4 h-4" /> Agendamentos
             </button>
-          )}
 
-          {canSeeSchedules && (
-            <button
-              onClick={() => setActiveTab("settings")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "settings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
-            >
-              <Clock className="w-4 h-4" /> Horários
-            </button>
-          )}
+            {canSeeServices && (
+              <button
+                onClick={() => setActiveTab("services")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "services" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+              >
+                <Wrench className="w-4 h-4" /> Serviços
+              </button>
+            )}
 
-          {canSeeReports && (
-            <button
-              onClick={() => setActiveTab("reports")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "reports" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
-            >
-              <BarChart3 className="w-4 h-4" /> Relatórios
-            </button>
-          )}
+            {canSeeBarbers && (
+              <button
+                onClick={() => setActiveTab("barbers")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "barbers" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+              >
+                <Users className="w-4 h-4" /> Colaboradores
+              </button>
+            )}
 
-          {hasFullAccess && (
-            <button
-              onClick={() => setActiveTab("permissions")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "permissions" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
-            >
-              <Shield className="w-4 h-4" /> Permissões
-            </button>
-          )}
+            {canSeeSchedules && (
+              <button
+                onClick={() => setActiveTab("settings")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "settings" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+              >
+                <Clock className="w-4 h-4" /> Horários
+              </button>
+            )}
+
+            {canSeeReports && (
+              <button
+                onClick={() => setActiveTab("reports")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "reports" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+              >
+                <BarChart3 className="w-4 h-4" /> Relatórios
+              </button>
+            )}
+
+            {hasFullAccess && (
+              <button
+                onClick={() => setActiveTab("permissions")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === "permissions" ? "bg-red-600 text-white" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+              >
+                <Shield className="w-4 h-4" /> Permissões
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Conteúdo das Abas com Proteção de Segurança */}
