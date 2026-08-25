@@ -116,7 +116,7 @@ export function PermissionsTab() {
     if (confirm(`Tem certeza que deseja excluir o cargo ${roleName}?`)) {
       const { error } = await supabase.from("role_permissions").delete().eq("role_name", roleName);
       if (error) {
-        alert("Erro ao excluir: " + error.message);
+        alert("Erro ao excluir. Verifique se há algum usuário utilizando este cargo: " + error.message);
       } else {
         fetchRolesAndPermissions();
       }
