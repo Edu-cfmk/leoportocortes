@@ -9,7 +9,6 @@ export function PermissionsTab() {
   const [newRoleName, setNewRoleName] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Estados para edição inline do nome do cargo
   const [editingRoleName, setEditingRoleName] = useState<string | null>(null);
   const [tempRoleName, setTempRoleName] = useState("");
 
@@ -20,7 +19,6 @@ export function PermissionsTab() {
   const fetchRolesAndPermissions = async () => {
     const { data, error } = await supabase.from("role_permissions").select("*");
     if (!error && data) {
-      // Oculta o cargo DEV completamente da matriz
       const filteredRoles = data.filter((r: any) => r.role_name !== "DEV");
       setRoles(filteredRoles);
     }
@@ -54,9 +52,18 @@ export function PermissionsTab() {
   };
 
   const handleTogglePermission = async (roleName: string, field: string, currentValue: boolean) => {
+    const newValue = !currentValue;
+    
+    // Atualiza ambas as colunas de horário para garantir compatibilidade total com o banco
+    const updatePayload: any = { [field]: newValue };
+    if (field === "can_manage_schedule" || field === "can_manage_schedules") {
+      updatePayload.can_manage_schedule = newValue;
+      updatePayload.can_manage_schedules = newValue;
+    }
+
     const { error } = await supabase
       .from("role_permissions")
-      .update({ [field]: !currentValue })
+      .update(updatePayload)
       .eq("role_name", roleName);
 
     if (error) {
@@ -128,121 +135,125 @@ export function PermissionsTab() {
         </div>
       </form>
 
-      {/* Matriz de Permissões Responsiva */}
+      {/* Matriz de Permissões */}
       <div className="bg-zinc-900 border border-zinc-800 p-4 sm:p-6 rounded-xl space-y-4">
         <div>
           <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">
             Matriz de Permissões por Cargo
           </h3>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            Gerencie o acesso e renomeie funções do painel administrativo.
+            Gerencie o acesso, edite nomes e remova cargos personalizados.
           </p>
         </div>
 
-        {/* Versão Compacta/Cards para Celular */}
+        {/* Versão Celular (Cards) */}
         <div className="space-y-4 sm:hidden">
-          {roles.map((r) => (
-            <div key={r.id || r.role_name} className="bg-black/60 border border-zinc-800 p-4 rounded-xl space-y-3">
-              <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
-                {editingRoleName === r.role_name ? (
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="text"
-                      value={tempRoleName}
-                      onChange={(e) => setTempRoleName(e.target.value)}
-                      className="bg-black border border-zinc-700 px-2 py-1 rounded text-xs text-white w-28 focus:outline-none focus:border-red-600"
-                    />
-                    <button
-                      onClick={() => handleUpdateRoleName(r.role_name)}
-                      className="p-1 bg-green-950 text-green-400 rounded hover:bg-green-900"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setEditingRoleName(null)}
-                      className="p-1 bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="bg-red-950 text-red-400 border border-red-800 px-2.5 py-1 rounded text-xs font-bold">
-                      {r.role_name}
-                    </span>
-                    {r.role_name !== "ADM" && r.role_name !== "Barbeiro" && (
+          {roles.map((r) => {
+            const hasScheduleAccess = Boolean(r.can_manage_schedule || r.can_manage_schedules);
+            const isDefault = r.role_name === "ADM" || r.role_name === "Barbeiro";
+
+            return (
+              <div key={r.id || r.role_name} className="bg-black/60 border border-zinc-800 p-4 rounded-xl space-y-3">
+                <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
+                  {editingRoleName === r.role_name ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={tempRoleName}
+                        onChange={(e) => setTempRoleName(e.target.value)}
+                        className="bg-black border border-zinc-700 px-2 py-1 rounded text-xs text-white w-28 focus:outline-none focus:border-red-600"
+                      />
                       <button
-                        onClick={() => {
-                          setEditingRoleName(r.role_name);
-                          setTempRoleName(r.role_name);
-                        }}
-                        className="text-zinc-500 hover:text-white"
-                        title="Editar nome"
+                        onClick={() => handleUpdateRoleName(r.role_name)}
+                        className="p-1 bg-green-950 text-green-400 rounded hover:bg-green-900"
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
+                        <Check className="w-3.5 h-3.5" />
                       </button>
-                    )}
-                  </div>
-                )}
+                      <button
+                        onClick={() => setEditingRoleName(null)}
+                        className="p-1 bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="bg-red-950 text-red-400 border border-red-800 px-2.5 py-1 rounded text-xs font-bold">
+                        {r.role_name}
+                      </span>
+                      {!isDefault && (
+                        <button
+                          onClick={() => {
+                            setEditingRoleName(r.role_name);
+                            setTempRoleName(r.role_name);
+                          }}
+                          className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[10px] flex items-center gap-1 transition-colors"
+                        >
+                          <Edit2 className="w-3 h-3" /> Editar
+                        </button>
+                      )}
+                    </div>
+                  )}
 
-                {r.role_name !== "ADM" && r.role_name !== "Barbeiro" ? (
-                  <button
-                    onClick={() => handleDeleteRole(r.role_name)}
-                    className="p-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors flex items-center gap-1 text-[11px]"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Excluir
-                  </button>
-                ) : (
-                  <span className="text-[10px] text-zinc-600 italic">Padrão</span>
-                )}
+                  {!isDefault ? (
+                    <button
+                      onClick={() => handleDeleteRole(r.role_name)}
+                      className="p-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors flex items-center gap-1 text-[11px]"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Excluir
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-zinc-600 italic">Padrão</span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                    <span className="text-zinc-400">Serviços</span>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(r.can_manage_services)}
+                      onChange={() => handleTogglePermission(r.role_name, "can_manage_services", Boolean(r.can_manage_services))}
+                      className="w-4 h-4 accent-red-600 cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                    <span className="text-zinc-400">Colaboradores</span>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(r.can_manage_barbers)}
+                      onChange={() => handleTogglePermission(r.role_name, "can_manage_barbers", Boolean(r.can_manage_barbers))}
+                      className="w-4 h-4 accent-red-600 cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                    <span className="text-zinc-400">Horários / Agenda</span>
+                    <input
+                      type="checkbox"
+                      checked={hasScheduleAccess}
+                      onChange={() => handleTogglePermission(r.role_name, "can_manage_schedule", hasScheduleAccess)}
+                      className="w-4 h-4 accent-red-600 cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                    <span className="text-zinc-400">Relatórios</span>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(r.can_manage_reports)}
+                      onChange={() => handleTogglePermission(r.role_name, "can_manage_reports", Boolean(r.can_manage_reports))}
+                      className="w-4 h-4 accent-red-600 cursor-pointer"
+                    />
+                  </label>
+                </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
-                  <span className="text-zinc-400">Serviços</span>
-                  <input
-                    type="checkbox"
-                    checked={r.can_manage_services}
-                    onChange={() => handleTogglePermission(r.role_name, "can_manage_services", r.can_manage_services)}
-                    className="w-4 h-4 accent-red-600 cursor-pointer"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
-                  <span className="text-zinc-400">Colaboradores</span>
-                  <input
-                    type="checkbox"
-                    checked={r.can_manage_barbers}
-                    onChange={() => handleTogglePermission(r.role_name, "can_manage_barbers", r.can_manage_barbers)}
-                    className="w-4 h-4 accent-red-600 cursor-pointer"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
-                  <span className="text-zinc-400">Horários</span>
-                  <input
-                    type="checkbox"
-                    checked={r.can_manage_schedules || r.can_manage_schedule}
-                    onChange={() => handleTogglePermission(r.role_name, "can_manage_schedules", r.can_manage_schedules || r.can_manage_schedule)}
-                    className="w-4 h-4 accent-red-600 cursor-pointer"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between bg-zinc-900 p-2 rounded border border-zinc-800/80">
-                  <span className="text-zinc-400">Relatórios</span>
-                  <input
-                    type="checkbox"
-                    checked={r.can_manage_reports}
-                    onChange={() => handleTogglePermission(r.role_name, "can_manage_reports", r.can_manage_reports)}
-                    className="w-4 h-4 accent-red-600 cursor-pointer"
-                  />
-                </label>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        {/* Versão Tabela Desktop */}
+        {/* Versão Desktop (Tabela) */}
         <div className="hidden sm:block w-full overflow-x-auto pb-2">
           <table className="w-full min-w-[600px] text-left border-collapse">
             <thead>
@@ -250,102 +261,106 @@ export function PermissionsTab() {
                 <th className="p-3">Cargo</th>
                 <th className="p-3 text-center">Serviços</th>
                 <th className="p-3 text-center">Colaboradores</th>
-                <th className="p-3 text-center">Horários</th>
+                <th className="p-3 text-center">Horários / Agenda</th>
                 <th className="p-3 text-center">Relatórios</th>
                 <th className="p-3 text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60 text-xs">
-              {roles.map((r) => (
-                <tr key={r.id || r.role_name} className="hover:bg-black/40 transition-colors">
-                  <td className="p-3 font-bold text-white whitespace-nowrap">
-                    {editingRoleName === r.role_name ? (
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="text"
-                          value={tempRoleName}
-                          onChange={(e) => setTempRoleName(e.target.value)}
-                          className="bg-black border border-zinc-700 px-2 py-1 rounded text-xs text-white w-28 focus:outline-none focus:border-red-600"
-                        />
-                        <button
-                          onClick={() => handleUpdateRoleName(r.role_name)}
-                          className="p-1 bg-green-950 text-green-400 rounded hover:bg-green-900"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setEditingRoleName(null)}
-                          className="p-1 bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="bg-red-950 text-red-400 border border-red-800 px-2 py-1 rounded text-[11px]">
-                          {r.role_name}
-                        </span>
-                        {r.role_name !== "ADM" && r.role_name !== "Barbeiro" && (
+              {roles.map((r) => {
+                const hasScheduleAccess = Boolean(r.can_manage_schedule || r.can_manage_schedules);
+                const isDefault = r.role_name === "ADM" || r.role_name === "Barbeiro";
+
+                return (
+                  <tr key={r.id || r.role_name} className="hover:bg-black/40 transition-colors">
+                    <td className="p-3 font-bold text-white whitespace-nowrap">
+                      {editingRoleName === r.role_name ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            value={tempRoleName}
+                            onChange={(e) => setTempRoleName(e.target.value)}
+                            className="bg-black border border-zinc-700 px-2 py-1 rounded text-xs text-white w-28 focus:outline-none focus:border-red-600"
+                          />
                           <button
-                            onClick={() => {
-                              setEditingRoleName(r.role_name);
-                              setTempRoleName(r.role_name);
-                            }}
-                            className="text-zinc-500 hover:text-white"
-                            title="Editar nome"
+                            onClick={() => handleUpdateRoleName(r.role_name)}
+                            className="p-1 bg-green-950 text-green-400 rounded hover:bg-green-900"
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
+                            <Check className="w-3.5 h-3.5" />
                           </button>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={r.can_manage_services}
-                      onChange={() => handleTogglePermission(r.role_name, "can_manage_services", r.can_manage_services)}
-                      className="w-4 h-4 accent-red-600 cursor-pointer"
-                    />
-                  </td>
-                  <td className="p-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={r.can_manage_barbers}
-                      onChange={() => handleTogglePermission(r.role_name, "can_manage_barbers", r.can_manage_barbers)}
-                      className="w-4 h-4 accent-red-600 cursor-pointer"
-                    />
-                  </td>
-                  <td className="p-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={r.can_manage_schedules || r.can_manage_schedule}
-                      onChange={() => handleTogglePermission(r.role_name, "can_manage_schedules", r.can_manage_schedules || r.can_manage_schedule)}
-                      className="w-4 h-4 accent-red-600 cursor-pointer"
-                    />
-                  </td>
-                  <td className="p-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={r.can_manage_reports}
-                      onChange={() => handleTogglePermission(r.role_name, "can_manage_reports", r.can_manage_reports)}
-                      className="w-4 h-4 accent-red-600 cursor-pointer"
-                    />
-                  </td>
-                  <td className="p-3 text-center">
-                    {r.role_name !== "ADM" && r.role_name !== "Barbeiro" ? (
-                      <button
-                        onClick={() => handleDeleteRole(r.role_name)}
-                        className="p-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px]"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Excluir
-                      </button>
-                    ) : (
-                      <span className="text-[10px] text-zinc-600 italic">Padrão</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                          <button
+                            onClick={() => setEditingRoleName(null)}
+                            className="p-1 bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="bg-red-950 text-red-400 border border-red-800 px-2 py-1 rounded text-[11px]">
+                            {r.role_name}
+                          </span>
+                          {!isDefault && (
+                            <button
+                              onClick={() => {
+                                setEditingRoleName(r.role_name);
+                                setTempRoleName(r.role_name);
+                              }}
+                              className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[10px] flex items-center gap-1 transition-colors"
+                            >
+                              <Edit2 className="w-3 h-3" /> Editar
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(r.can_manage_services)}
+                        onChange={() => handleTogglePermission(r.role_name, "can_manage_services", Boolean(r.can_manage_services))}
+                        className="w-4 h-4 accent-red-600 cursor-pointer"
+                      />
+                    </td>
+                    <td className="p-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(r.can_manage_barbers)}
+                        onChange={() => handleTogglePermission(r.role_name, "can_manage_barbers", Boolean(r.can_manage_barbers))}
+                        className="w-4 h-4 accent-red-600 cursor-pointer"
+                      />
+                    </td>
+                    <td className="p-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={hasScheduleAccess}
+                        onChange={() => handleTogglePermission(r.role_name, "can_manage_schedule", hasScheduleAccess)}
+                        className="w-4 h-4 accent-red-600 cursor-pointer"
+                      />
+                    </td>
+                    <td className="p-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(r.can_manage_reports)}
+                        onChange={() => handleTogglePermission(r.role_name, "can_manage_reports", Boolean(r.can_manage_reports))}
+                        className="w-4 h-4 accent-red-600 cursor-pointer"
+                      />
+                    </td>
+                    <td className="p-3 text-center">
+                      {!isDefault ? (
+                        <button
+                          onClick={() => handleDeleteRole(r.role_name)}
+                          className="p-1.5 bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-400 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px]"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Excluir
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-zinc-600 italic">Padrão</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
