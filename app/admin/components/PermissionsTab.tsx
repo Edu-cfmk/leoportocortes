@@ -31,7 +31,6 @@ export function PermissionsTab() {
     e.preventDefault();
     if (!newRoleName.trim()) return;
 
-    // Impede criar cargo com nome DEV por segurança
     if (newRoleName.trim().toUpperCase() === "DEV") {
       alert("Nome de cargo reservado.");
       return;
@@ -44,7 +43,8 @@ export function PermissionsTab() {
         can_manage_services: false,
         can_manage_barbers: false,
         can_manage_schedule: true,
-        can_manage_settings: false,
+        can_manage_schedules: false,
+        can_manage_reports: false,
       }
     ]);
 
@@ -123,9 +123,11 @@ export function PermissionsTab() {
             <thead className="border-b border-zinc-800 text-zinc-400 uppercase">
               <tr>
                 <th className="p-3">Cargo</th>
-                <th className="p-3 text-center">Gerenciar Serviços</th>
-                <th className="p-3 text-center">Gerenciar Colaboradores</th>
-                <th className="p-3 text-center">Gerenciar Agendamentos</th>
+                <th className="p-3 text-center">Serviços</th>
+                <th className="p-3 text-center">Colaboradores</th>
+                <th className="p-3 text-center">Agendamentos</th>
+                <th className="p-3 text-center">Horários</th>
+                <th className="p-3 text-center">Relatórios</th>
                 <th className="p-3 text-center">Ações</th>
               </tr>
             </thead>
@@ -158,6 +160,22 @@ export function PermissionsTab() {
                       type="checkbox"
                       checked={p.can_manage_schedule}
                       onChange={() => handleTogglePermission(p.id, "can_manage_schedule", p.can_manage_schedule)}
+                      className="accent-red-600 w-4 h-4 cursor-pointer"
+                    />
+                  </td>
+                  <td className="p-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={p.can_manage_schedules}
+                      onChange={() => handleTogglePermission(p.id, "can_manage_schedules", p.can_manage_schedules)}
+                      className="accent-red-600 w-4 h-4 cursor-pointer"
+                    />
+                  </td>
+                  <td className="p-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={p.can_manage_reports}
+                      onChange={() => handleTogglePermission(p.id, "can_manage_reports", p.can_manage_reports)}
                       className="accent-red-600 w-4 h-4 cursor-pointer"
                     />
                   </td>
