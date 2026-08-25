@@ -44,7 +44,6 @@ export function PermissionsTab() {
     ]);
 
     if (error) {
-      // Se por acaso a coluna can_manage_bookings não existir no Supabase, avisamos de forma clara
       alert("Erro ao criar cargo: " + error.message);
     } else {
       setNewRoleName("");
@@ -55,9 +54,23 @@ export function PermissionsTab() {
 
   const handleTogglePermission = async (roleName: string, field: string, currentValue: boolean) => {
     const newValue = !currentValue;
-    const updatePayload: any = { [field]: newValue };
 
-    // Sincroniza se mexer em horários
+    // Atualização otimista imediata na tela (evita que a página pisque ou pule)
+    setRoles((prevRoles) =>
+      prevRoles.map((r) => {
+        if (r.role_name === roleName) {
+          const updated = { ...r, [field]: newValue };
+          if (field === "can_manage_schedule" || field === "can_manage_schedules") {
+            updated.can_manage_schedule = newValue;
+            updated.can_manage_schedules = newValue;
+          }
+          return updated;
+        }
+        return r;
+      })
+    );
+
+    const updatePayload: any = { [field]: newValue };
     if (field === "can_manage_schedule" || field === "can_manage_schedules") {
       updatePayload.can_manage_schedule = newValue;
       updatePayload.can_manage_schedules = newValue;
@@ -69,9 +82,8 @@ export function PermissionsTab() {
       .eq("role_name", roleName);
 
     if (error) {
-      alert("Erro ao atualizar permissão: " + error.message + "\n\nNota: Se o erro mencionar 'can_manage_bookings', execute o comando SQL ALTER TABLE role_permissions ADD COLUMN can_manage_bookings BOOLEAN DEFAULT false; no seu Supabase.");
-    } else {
-      fetchRolesAndPermissions();
+      alert("Erro ao atualizar permissão: " + error.message);
+      fetchRolesAndPermissions(); // Reverte em caso de erro real
     }
   };
 
@@ -162,17 +174,15 @@ export function PermissionsTab() {
                   </span>
 
                   <div className="flex items-center gap-1.5">
-                    {!isDefault && (
-                      <button
-                        onClick={() => {
-                          setEditingRoleName(r.role_name);
-                          setTempRoleName(r.role_name);
-                        }}
-                        className="px-2 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-[11px] flex items-center gap-1 transition-colors"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" /> Editar
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        setEditingRoleName(r.role_name);
+                        setTempRoleName(r.role_name);
+                      }}
+                      className="px-2 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-[11px] flex items-center gap-1 transition-colors"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" /> Editar
+                    </button>
                     {!isDefault ? (
                       <button
                         onClick={() => handleDeleteRole(r.role_name)}
@@ -358,17 +368,15 @@ export function PermissionsTab() {
                     </td>
                     <td className="p-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        {!isDefault && (
-                          <button
-                            onClick={() => {
-                              setEditingRoleName(r.role_name);
-                              setTempRoleName(r.role_name);
-                            }}
-                            className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px]"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" /> Editar
-                          </button>
-                        )}
+                        <button
+                          onClick={() => {
+                            setEditingRoleName(r.role_name);
+                            setTempRoleName(r.role_name);
+                          }}
+                          className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px]"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" /> Editar
+                        </button>
                         {!isDefault ? (
                           <button
                             onClick={() => handleDeleteRole(r.role_name)}
