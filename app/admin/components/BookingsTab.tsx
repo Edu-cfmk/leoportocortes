@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect } from "react"
-import { Calendar, RefreshCw, Clock3, MessageCircle, X, CheckCircle2, XCircle } from "lucide-react"
+import { Calendar, RefreshCw, Clock3, MessageCircle, X } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 interface BookingsTabProps {
@@ -72,13 +72,12 @@ export function BookingsTab({
     })
   }
 
-  // Obter a data de hoje formatada em YYYY-MM-DD para o padrão inicial
+  // Obter a data de hoje formatada em YYYY-MM-DD
   const todayDateStr = new Date().toISOString().split("T")[0]
 
-  // FILTRO PRINCIPAL: 
-  // - Esconde apenas os concluídos ou cancelados (que já tiveram ação do barbeiro).
-  // - Se nenhuma data estiver selecionada no calendário, mostra os agendamentos de HOJE por padrão para manter a tela limpa e focada no dia corrente, 
-  //   mas permitindo ver os outros dias caso selecionados no calendário.
+  // FILTRO PRINCIPAL (Lista de Baixo): 
+  // - Se houver uma data selecionada no calendário, mostra apenas aquela data.
+  // - Se não houver data selecionada, mostra TUDO de hoje em diante em ordem cronológica.
   const activeBookings = (bookings || []).filter(item => {
     const status = (item.status || "").toLowerCase()
     
@@ -87,28 +86,32 @@ export function BookingsTab({
       return false
     }
 
+    if (!item.booking_date) return false
+    const itemDateOnly = item.booking_date.split("T")[0]
+
     // Se o usuário selecionou uma data específica no calendário, respeita ela
     if (selectedDate) {
-      if (!item.booking_date) return false
-      return item.booking_date.split("T")[0] === selectedDate
+      return itemDateOnly === selectedDate
     }
 
-    // Se NÃO há data selecionada no input, exibe por padrão os agendamentos de HOJE
-    // (Assim, se houver agendamentos pendentes de hoje após o fechamento, eles continuam aparecendo até o barbeiro concluir/cancelar)
-    if (item.booking_date) {
-      return item.booking_date.split("T")[0] === todayDateStr
-    }
-
-    return true
+    // Por padrão (sem filtro de data), exibe de hoje em diante
+    return itemDateOnly >= todayDateStr
   })
 
   const sortedActiveBookings = sortBookingsChronologically(activeBookings)
 
-  // Próximos horários ativos gerais (apenas os que ainda não foram concluídos/cancelados)
+  // PRÓXIMOS 4 HORÁRIOS: Apenas de HOJE em diante (excluindo concluídos/cancelados)
   const allActiveBookings = (bookings || []).filter(b => {
     const status = (b.status || "").toLowerCase()
-    return status !== "completed" && status !== "canceled" && status !== "concluído"
+    if (status === "completed" || status === "canceled" || status === "concluído") return false
+
+    if (b.booking_date) {
+      const itemDateOnly = b.booking_date.split("T")[0]
+      if (itemDateOnly < todayDateStr) return false
+    }
+    return true
   })
+  
   const sortedPendingBookings = sortBookingsChronologically(allActiveBookings)
   const upcomingBookings = sortedPendingBookings.slice(0, 4)
 
@@ -135,7 +138,7 @@ export function BookingsTab({
               onClick={() => setSelectedDate("")}
               className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 px-2.5 py-1.5 rounded-lg"
             >
-              <X className="w-3.5 h-3.5" /> Limpar filtro
+              <X className="w-3.5 h-3.5" /> Limpar filtro (Mostrar Todos Futuros)
             </button>
           )}
         </div>
@@ -148,7 +151,7 @@ export function BookingsTab({
         </button>
       </div>
 
-      {/* Próximos 4 Horários Mais Perto */}
+      {/* Próximos 4 Horários Mais Perto (A partir de Hoje) */}
       <div className="space-y-3">
         <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
           <Clock3 className="w-4 h-4 text-red-500" /> Próximos 4 Horários Ativos
@@ -196,17 +199,17 @@ export function BookingsTab({
         </div>
       </div>
 
-      {/* Lista Principal de Agendamentos Ativos do Dia */}
+      {/* Lista Principal de Agendamentos Ativos (Hoje e Dias Seguintes) */}
       <div className="space-y-3 pt-4">
         <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
           {selectedDate 
             ? `Agendamentos do Dia ${formatDate(selectedDate)} (${sortedActiveBookings.length})` 
-            : `Agendamentos de Hoje (${formatDate(todayDateStr)}) em Ordem Cronológica (${sortedActiveBookings.length})`}
+            : `Todos os Próximos Agendamentos em Ordem Cronológica (${sortedActiveBookings.length})`}
         </h2>
 
         {sortedActiveBookings.length === 0 ? (
           <div className="text-center py-10 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-400 text-sm">
-            Nenhum agendamento pendente para hoje. (Selecione outra data no calendário acima se precisar ver dias anteriores ou futuros).
+            Nenhum agendamento futuro encontrado.
           </div>
         ) : (
           <div className="grid gap-3">
