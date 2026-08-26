@@ -26,7 +26,7 @@ export function BookingsTab({
       .on(
         'postgres_changes',
         {
-          event: '*', // Escuta INSERT, UPDATE e DELETE
+          event: '*', 
           schema: 'public',
           table: 'bookings',
         },
@@ -40,7 +40,7 @@ export function BookingsTab({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [selectedDate]) // Recarrega se a data mudar
+  }, [selectedDate])
 
   // Função auxiliar para formatar YYYY-MM-DD para DD/MM/AAAA
   const formatDate = (dateStr: string) => {
@@ -56,17 +56,38 @@ export function BookingsTab({
     setSelectedDate(today)
   }
 
-  // Filtro rigoroso: Se selectedDate estiver preenchida, filtra exatamente por ela (YYYY-MM-DD)
+  // 1. Função de ordenação cronológica universal (Data + Horário) do mais perto para o mais longe
+  const sortBookingsChronologically = (list: any[]) => {
+    return [...list].sort((a, b) => {
+      const dateA = a.booking_date ? a.booking_date.split("T")[0] : ""
+      const dateB = b.booking_date ? b.booking_date.split("T")[0] : ""
+
+      if (dateA !== dateB) {
+        return dateA.localeCompare(dateB) // Da data mais antiga/próxima para a mais distante
+      }
+
+      // Se for o mesmo dia, ordena pelo horário (do primeiro ao último, ex: 08:00 antes de 14:00)
+      const timeA = a.booking_time || ""
+      const timeB = b.booking_time || ""
+      return timeA.localeCompare(timeB)
+    })
+  }
+
+  // Filtro por data selecionada (se houver)
   const filteredBookings = (bookings || []).filter(item => {
-    if (!selectedDate) return true // Se não há data selecionada, mostra todos
+    if (!selectedDate) return true 
     if (!item.booking_date) return false
-    
-    // Normaliza a data do banco para comparar apenas a parte YYYY-MM-DD (ex: pegando os 10 primeiros caracteres)
     const itemDateOnly = item.booking_date.split("T")[0]
     return itemDateOnly === selectedDate
   })
 
-  const upcomingBookings = (filteredBookings || []).filter(b => b.status === "pending").slice(0, 4)
+  // Aplica a ordenação correta na listagem principal
+  const sortedFilteredBookings = sortBookingsChronologically(filteredBookings)
+
+  // Próximos 4 horários pendentes gerais (do mais perto para o mais longe, ignorando se há filtro de data ou não)
+  const allPendingBookings = (bookings || []).filter(b => b.status === "pending")
+  const sortedPendingBookings = sortBookingsChronologically(allPendingBookings)
+  const upcomingBookings = sortedPendingBookings.slice(0, 4)
 
   return (
     <div className="space-y-6">
@@ -112,7 +133,7 @@ export function BookingsTab({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {upcomingBookings.length === 0 ? (
             <div className="col-span-full py-6 text-center text-xs text-zinc-400 bg-zinc-950/60 rounded-xl border border-zinc-800">
-              Nenhum agendamento pendente para esta data.
+              Nenhum agendamento pendente encontrado.
             </div>
           ) : (
             upcomingBookings.map((item) => (
@@ -156,17 +177,17 @@ export function BookingsTab({
       <div className="space-y-3 pt-4">
         <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
           {selectedDate 
-            ? `Agendamentos do Dia ${formatDate(selectedDate)} (${filteredBookings.length})` 
-            : `Todos os Agendamentos em Ordem (${filteredBookings.length})`}
+            ? `Agendamentos do Dia ${formatDate(selectedDate)} (${sortedFilteredBookings.length})` 
+            : `Todos os Agendamentos em Ordem Cronológica (${sortedFilteredBookings.length})`}
         </h2>
 
-        {filteredBookings.length === 0 ? (
+        {sortedFilteredBookings.length === 0 ? (
           <div className="text-center py-10 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-400 text-sm">
             Nenhum registro encontrado para este filtro.
           </div>
         ) : (
           <div className="grid gap-3">
-            {filteredBookings.map((item) => (
+            {sortedFilteredBookings.map((item) => (
               <div 
                 key={item.id} 
                 className={`bg-zinc-950 border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all ${
