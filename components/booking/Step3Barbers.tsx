@@ -20,40 +20,64 @@ export function Step3Barbers({ selectedBarber, onSelectBarber, onNext, onBack }:
   useEffect(() => {
     async function fetchBarbers() {
       try {
-        // Buscamos da tabela de usuários/colaboradores do admin ("users")
-        // Caso sua tabela tenha outro nome exato (ex: "collaborators"), basta trocar abaixo
-        const { data, error } = await supabase.from("users").select("*")
-        
-        if (error) {
-          console.error("Erro ao buscar colaboradores:", error)
-          // Fallback caso a tabela seja "barbers"
-          const { data: dataBarbers } = await supabase.from("barbers").select("*")
-          if (dataBarbers) processarDados(dataBarbers)
-        } else if (data) {
-          processarDados(data)
+        // Busca simultânea nas tabelas de barbeiros e de usuários/colaboradores do admin
+        const [resBarbers, resUsers, resAdminUsers] = await Promise.all([
+          supabase.from("barbers").select("*"),
+          supabase.from("users").select("*"),
+          supabase.from("admin_users").select("*")
+        ])
+
+        const listaUnificada: Barber[] = []
+        const idsVistos = new Set<string>()
+
+        // Processa tabela 'barbers'
+        if (resBarbers.data) {
+          resBarbers.data.forEach((item: any) => {
+            if (!idsVistos.has(item.id)) {
+              idsVistos.add(item.id)
+              listaUnificada.push({
+                id: item.id,
+                name: item.name || item.username,
+                role: item.role === "ADM" || item.role === "admin" ? "Barbeiro" : (item.role || "Barbeiro")
+              })
+            }
+          })
         }
+
+        // Processa tabela 'users' (colaboradores criados pelo painel)
+        if (resUsers.data) {
+          resUsers.data.forEach((item: any) => {
+            if (!idsVistos.has(item.id)) {
+              idsVistos.add(item.id)
+              listaUnificada.push({
+                id: item.id,
+                name: item.name || item.username || item.usuario,
+                role: "Barbeiro"
+              })
+            }
+          })
+        }
+
+        // Processa tabela 'admin_users' se houver
+        if (resAdminUsers.data) {
+          resAdminUsers.data.forEach((item: any) => {
+            if (!idsVistos.has(item.id)) {
+              idsVistos.add(item.id)
+              listaUnificada.push({
+                id: item.id,
+                name: item.name || item.username,
+                role: "Barbeiro"
+              })
+            }
+          })
+        }
+
+        setBarbers(listaUnificada)
       } catch (err) {
-        console.error("Erro inesperado:", err)
+        console.error("Erro inesperado ao buscar profissionais:", err)
       } finally {
         setLoading(false)
       }
-    }
-
-    function processarDados(items: any[]) {
-      const fetchedBarbers: Barber[] = items.map((item: any) => {
-        let role = item.role || item.cargo || "Barbeiro"
-        if (role.toLowerCase() === "adm" || role.toLowerCase() === "admin") {
-          role = "Barbeiro"
-        }
-
-        return {
-          id: item.id,
-          name: item.name || item.username || item.usuario, // Compatível com campos de nome ou username
-          role: role,
-        }
-      })
-
-      setBarbers(fetchedBarbers)
     }
 
     fetchBarbers()
