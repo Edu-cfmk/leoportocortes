@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { BarChart3, DollarSign, Scissors, Users, CalendarCheck, TrendingUp, Filter, AlertCircle, Wallet, History, Search, Calendar, UserCheck, X } from "lucide-react"
+import { BarChart3, DollarSign, Scissors, Users, CalendarCheck, TrendingUp, Filter, AlertCircle, Wallet, History, Search, Calendar, UserCheck, X, Clock } from "lucide-react"
 
 interface ReportsTabProps {
   bookings: any[]
@@ -11,10 +11,13 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
   // Filtro de período geral superior: "all", "today", "month"
   const [periodFilter, setPeriodFilter] = useState<"all" | "today" | "month">("month")
   
-  // Estados para os novos filtros do Histórico
+  // Estados para os filtros do Histórico
   const [historySearchTerm, setHistorySearchTerm] = useState("")
   const [historySelectedDate, setHistorySelectedDate] = useState("")
   const [historySelectedBarber, setHistorySelectedBarber] = useState("")
+  
+  // NOVO: Temporizador de exibição em dias (ex: "30", "60", "90", "all")
+  const [retentionDays, setRetentionDays] = useState<string>("all")
 
   // Lista única de barbeiros extraídos dos agendamentos para popular o select de filtro
   const availableBarbers = useMemo(() => {
@@ -132,10 +135,24 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`
   }
 
-  // Lista filtrada para o Histórico de Serviços (com busca, calendário e filtro por barbeiro)
+  // Lista filtrada para o Histórico de Serviços (com temporizador de dias, busca, calendário e barbeiro)
   const historyBookings = useMemo(() => {
     let list = bookings || []
     
+    // Filtro por Temporizador de Dias (Ex: Ocultar o que for mais antigo que X dias)
+    if (retentionDays !== "all") {
+      const daysLimit = parseInt(retentionDays, 10)
+      const now = new Date()
+      
+      list = list.filter(item => {
+        if (!item.booking_date) return false
+        const itemDate = new Date(item.booking_date)
+        const diffTime = now.getTime() - itemDate.getTime()
+        const diffDays = diffTime / (1000 * 3600 * 24)
+        return diffDays <= daysLimit && diffDays >= 0
+      })
+    }
+
     // Ordena do mais recente para o mais antigo
     list = [...list].sort((a, b) => {
       const dateA = a.booking_date || ""
@@ -169,7 +186,7 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
     }
 
     return list
-  }, [bookings, historySearchTerm, historySelectedDate, historySelectedBarber])
+  }, [bookings, historySearchTerm, historySelectedDate, historySelectedBarber, retentionDays])
 
   return (
     <div className="space-y-6">
@@ -328,15 +345,31 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
         </div>
       </div>
 
-      {/* SEÇÃO DE HISTÓRICO / BANCO DE DADOS COM FILTROS DE CALENDÁRIO E BARBEIRO */}
+      {/* SEÇÃO DE HISTÓRICO COM TEMPORIZADOR, CALENDÁRIO E FILTROS */}
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 space-y-4">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <History className="w-4 h-4 text-red-500" /> Histórico Completo de Serviços (Banco de Dados)
           </h3>
 
-          {/* Filtros da Tabela de Histórico (Calendario + Barbeiro + Busca) */}
+          {/* Filtros da Tabela de Histórico (Temporizador + Calendário + Barbeiro + Busca) */}
           <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+            {/* NOVO: Temporizador de Dias */}
+            <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg" title="Exibir apenas agendamentos recentes até X dias">
+              <Clock className="w-3.5 h-3.5 text-red-500" />
+              <select
+                value={retentionDays}
+                onChange={(e) => setRetentionDays(e.target.value)}
+                className="bg-transparent text-xs text-white focus:outline-none cursor-pointer"
+              >
+                <option value="all" className="bg-zinc-900 text-white">Exibir Tudo (Sem Limite)</option>
+                <option value="30" className="bg-zinc-900 text-white">Últimos 30 Dias</option>
+                <option value="60" className="bg-zinc-900 text-white">Últimos 60 Dias</option>
+                <option value="90" className="bg-zinc-900 text-white">Últimos 90 Dias</option>
+                <option value="180" className="bg-zinc-900 text-white">Últimos 180 Dias</option>
+              </select>
+            </div>
+
             {/* Seletor de Data (Calendário) */}
             <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg">
               <Calendar className="w-3.5 h-3.5 text-red-500" />
@@ -375,7 +408,7 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
             </div>
 
             {/* Caixa de Texto de Busca Rápida */}
-            <div className="relative flex-1 sm:w-60">
+            <div className="relative flex-1 sm:w-56">
               <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-zinc-400" />
               <input
                 type="text"
