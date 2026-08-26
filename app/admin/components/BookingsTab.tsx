@@ -72,24 +72,39 @@ export function BookingsTab({
     })
   }
 
-  // FILTRO PRINCIPAL CORRIGIDO: Mostra tudo o que NÃO foi concluído nem cancelado (exibe 'confirmed', 'pending' ou nulos)
+  // Obter a data de hoje formatada em YYYY-MM-DD para o padrão inicial
+  const todayDateStr = new Date().toISOString().split("T")[0]
+
+  // FILTRO PRINCIPAL: 
+  // - Esconde apenas os concluídos ou cancelados (que já tiveram ação do barbeiro).
+  // - Se nenhuma data estiver selecionada no calendário, mostra os agendamentos de HOJE por padrão para manter a tela limpa e focada no dia corrente, 
+  //   mas permitindo ver os outros dias caso selecionados no calendário.
   const activeBookings = (bookings || []).filter(item => {
     const status = (item.status || "").toLowerCase()
     
-    // Esconde apenas os que já foram finalizados ou cancelados da tela principal
+    // Se já foi concluído ou cancelado, remove da tela ativa
     if (status === "completed" || status === "canceled" || status === "concluído") {
       return false
     }
 
-    if (!selectedDate) return true 
-    if (!item.booking_date) return false
-    const itemDateOnly = item.booking_date.split("T")[0]
-    return itemDateOnly === selectedDate
+    // Se o usuário selecionou uma data específica no calendário, respeita ela
+    if (selectedDate) {
+      if (!item.booking_date) return false
+      return item.booking_date.split("T")[0] === selectedDate
+    }
+
+    // Se NÃO há data selecionada no input, exibe por padrão os agendamentos de HOJE
+    // (Assim, se houver agendamentos pendentes de hoje após o fechamento, eles continuam aparecendo até o barbeiro concluir/cancelar)
+    if (item.booking_date) {
+      return item.booking_date.split("T")[0] === todayDateStr
+    }
+
+    return true
   })
 
   const sortedActiveBookings = sortBookingsChronologically(activeBookings)
 
-  // Próximos horários ativos gerais (excluindo concluídos e cancelados)
+  // Próximos horários ativos gerais (apenas os que ainda não foram concluídos/cancelados)
   const allActiveBookings = (bookings || []).filter(b => {
     const status = (b.status || "").toLowerCase()
     return status !== "completed" && status !== "canceled" && status !== "concluído"
@@ -120,7 +135,7 @@ export function BookingsTab({
               onClick={() => setSelectedDate("")}
               className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 px-2.5 py-1.5 rounded-lg"
             >
-              <X className="w-3.5 h-3.5" /> Limpar filtro (Mostrar Todos)
+              <X className="w-3.5 h-3.5" /> Limpar filtro
             </button>
           )}
         </div>
@@ -181,17 +196,17 @@ export function BookingsTab({
         </div>
       </div>
 
-      {/* Lista Principal de Agendamentos Ativos */}
+      {/* Lista Principal de Agendamentos Ativos do Dia */}
       <div className="space-y-3 pt-4">
         <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
           {selectedDate 
             ? `Agendamentos do Dia ${formatDate(selectedDate)} (${sortedActiveBookings.length})` 
-            : `Todos os Agendamentos Ativos em Ordem Cronológica (${sortedActiveBookings.length})`}
+            : `Agendamentos de Hoje (${formatDate(todayDateStr)}) em Ordem Cronológica (${sortedActiveBookings.length})`}
         </h2>
 
         {sortedActiveBookings.length === 0 ? (
           <div className="text-center py-10 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-400 text-sm">
-            Nenhum agendamento ativo encontrado para este filtro.
+            Nenhum agendamento pendente para hoje. (Selecione outra data no calendário acima se precisar ver dias anteriores ou futuros).
           </div>
         ) : (
           <div className="grid gap-3">
