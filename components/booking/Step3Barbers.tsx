@@ -20,7 +20,6 @@ export function Step3Barbers({ selectedBarber, onSelectBarber, onNext, onBack }:
   useEffect(() => {
     async function fetchBarbers() {
       try {
-        // Busca simultânea nas tabelas de barbeiros e de usuários/colaboradores do admin
         const [resBarbers, resUsers, resAdminUsers] = await Promise.all([
           supabase.from("barbers").select("*"),
           supabase.from("users").select("*"),
@@ -30,47 +29,32 @@ export function Step3Barbers({ selectedBarber, onSelectBarber, onNext, onBack }:
         const listaUnificada: Barber[] = []
         const idsVistos = new Set<string>()
 
-        // Processa tabela 'barbers'
-        if (resBarbers.data) {
-          resBarbers.data.forEach((item: any) => {
-            if (!idsVistos.has(item.id)) {
-              idsVistos.add(item.id)
-              listaUnificada.push({
-                id: item.id,
-                name: item.name || item.username,
-                role: item.role === "ADM" || item.role === "admin" ? "Barbeiro" : (item.role || "Barbeiro")
-              })
-            }
-          })
+        // Apenas o desenvolvedor (EduardoDev) é ignorado; Leo continua aparecendo pois é barbeiro
+        const nomesIgnorados = ["eduardodev", "eduardo dev"]
+
+        const processarItem = (item: any) => {
+          if (!item) return
+          const nomeOriginal = item.name || item.username || item.usuario || ""
+          const nomeLower = nomeOriginal.trim().toLowerCase()
+
+          // Se for o desenvolvedor, pula
+          if (nomesIgnorados.includes(nomeLower)) {
+            return
+          }
+
+          if (item.id && !idsVistos.has(item.id)) {
+            idsVistos.add(item.id)
+            listaUnificada.push({
+              id: item.id,
+              name: nomeOriginal,
+              role: "Barbeiro"
+            })
+          }
         }
 
-        // Processa tabela 'users' (colaboradores criados pelo painel)
-        if (resUsers.data) {
-          resUsers.data.forEach((item: any) => {
-            if (!idsVistos.has(item.id)) {
-              idsVistos.add(item.id)
-              listaUnificada.push({
-                id: item.id,
-                name: item.name || item.username || item.usuario,
-                role: "Barbeiro"
-              })
-            }
-          })
-        }
-
-        // Processa tabela 'admin_users' se houver
-        if (resAdminUsers.data) {
-          resAdminUsers.data.forEach((item: any) => {
-            if (!idsVistos.has(item.id)) {
-              idsVistos.add(item.id)
-              listaUnificada.push({
-                id: item.id,
-                name: item.name || item.username,
-                role: "Barbeiro"
-              })
-            }
-          })
-        }
+        if (resBarbers.data) resBarbers.data.forEach(processarItem)
+        if (resUsers.data) resUsers.data.forEach(processarItem)
+        if (resAdminUsers.data) resAdminUsers.data.forEach(processarItem)
 
         setBarbers(listaUnificada)
       } catch (err) {
