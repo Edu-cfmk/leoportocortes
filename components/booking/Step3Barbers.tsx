@@ -27,9 +27,9 @@ export function Step3Barbers({ selectedBarber, onSelectBarber, onNext, onBack }:
         ])
 
         const listaUnificada: Barber[] = []
-        const idsVistos = new Set<string>()
+        const nomesVistos = new Set<string>()
 
-        // Apenas o desenvolvedor (EduardoDev) é ignorado; Leo continua aparecendo pois é barbeiro
+        // Desenvolvedor que não deve aparecer
         const nomesIgnorados = ["eduardodev", "eduardo dev"]
 
         const processarItem = (item: any) => {
@@ -37,13 +37,13 @@ export function Step3Barbers({ selectedBarber, onSelectBarber, onNext, onBack }:
           const nomeOriginal = item.name || item.username || item.usuario || ""
           const nomeLower = nomeOriginal.trim().toLowerCase()
 
-          // Se for o desenvolvedor, pula
-          if (nomesIgnorados.includes(nomeLower)) {
+          if (!nomeLower || nomesIgnorados.includes(nomeLower)) {
             return
           }
 
-          if (item.id && !idsVistos.has(item.id)) {
-            idsVistos.add(item.id)
+          // Se o nome ainda não foi adicionado à lista, adiciona (evita duplicados por nome/tabelas diferentes)
+          if (!nomesVistos.has(nomeLower)) {
+            nomesVistos.add(nomeLower)
             listaUnificada.push({
               id: item.id,
               name: nomeOriginal,
