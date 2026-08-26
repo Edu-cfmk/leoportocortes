@@ -1,20 +1,32 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { BarChart3, DollarSign, Scissors, Users, CalendarCheck, TrendingUp, Filter, AlertCircle, Wallet, History, Search } from "lucide-react"
+import { BarChart3, DollarSign, Scissors, Users, CalendarCheck, TrendingUp, Filter, AlertCircle, Wallet, History, Search, Calendar, UserCheck, X } from "lucide-react"
 
 interface ReportsTabProps {
   bookings: any[]
 }
 
 export function ReportsTab({ bookings }: ReportsTabProps) {
-  // Filtro de período: "all", "today", "month"
+  // Filtro de período geral superior: "all", "today", "month"
   const [periodFilter, setPeriodFilter] = useState<"all" | "today" | "month">("month")
   
-  // Estado para busca interna no histórico de serviços
-  const [searchTerm, setSearchTerm] = useState("")
+  // Estados para os novos filtros do Histórico
+  const [historySearchTerm, setHistorySearchTerm] = useState("")
+  const [historySelectedDate, setHistorySelectedDate] = useState("")
+  const [historySelectedBarber, setHistorySelectedBarber] = useState("")
 
-  // Filtragem dos agendamentos conforme o período selecionado
+  // Lista única de barbeiros extraídos dos agendamentos para popular o select de filtro
+  const availableBarbers = useMemo(() => {
+    const list = bookings || []
+    const barbersSet = new Set<string>()
+    list.forEach(b => {
+      if (b.barber_name) barbersSet.add(b.barber_name)
+    })
+    return Array.from(barbersSet)
+  }, [bookings])
+
+  // Filtragem dos agendamentos conforme o período selecionado (para os cards e gráficos)
   const filteredBookings = useMemo(() => {
     const list = bookings || []
     const todayStr = new Date().toISOString().split("T")[0] // YYYY-MM-DD
@@ -59,7 +71,7 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
       }
     })
 
-    // Ticket Médio (Faturamento Total dividido pelo número de agendamentos válidos)
+    // Ticket Médio
     const ticketMedio = validBookings.length > 0 ? totalRevenue / validBookings.length : 0
 
     // Agrupamento por Barbeiro
@@ -120,7 +132,7 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`
   }
 
-  // Lista para o Histórico de Serviços Passados (com busca por texto)
+  // Lista filtrada para o Histórico de Serviços (com busca, calendário e filtro por barbeiro)
   const historyBookings = useMemo(() => {
     let list = bookings || []
     
@@ -132,20 +144,36 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
       return (b.booking_time || "").localeCompare(a.booking_time || "")
     })
 
-    if (!searchTerm.trim()) return list
+    // Filtro por Data Específica (Calendário do Histórico)
+    if (historySelectedDate) {
+      list = list.filter(item => {
+        if (!item.booking_date) return false
+        return item.booking_date.split("T")[0] === historySelectedDate
+      })
+    }
 
-    const term = searchTerm.toLowerCase()
-    return list.filter(item => 
-      (item.client_name && item.client_name.toLowerCase().includes(term)) ||
-      (item.barber_name && item.barber_name.toLowerCase().includes(term)) ||
-      (item.service_name && item.service_name.toLowerCase().includes(term)) ||
-      (item.client_phone && item.client_phone.includes(term))
-    )
-  }, [bookings, searchTerm])
+    // Filtro por Barbeiro Específico
+    if (historySelectedBarber) {
+      list = list.filter(item => item.barber_name === historySelectedBarber)
+    }
+
+    // Filtro por Texto (Busca livre)
+    if (historySearchTerm.trim()) {
+      const term = historySearchTerm.toLowerCase()
+      list = list.filter(item => 
+        (item.client_name && item.client_name.toLowerCase().includes(term)) ||
+        (item.barber_name && item.barber_name.toLowerCase().includes(term)) ||
+        (item.service_name && item.service_name.toLowerCase().includes(term)) ||
+        (item.client_phone && item.client_phone.includes(term))
+      )
+    }
+
+    return list
+  }, [bookings, historySearchTerm, historySelectedDate, historySelectedBarber])
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho e Filtro de Período */}
+      {/* Cabeçalho e Filtro de Período Geral */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-zinc-950 border border-zinc-800 p-4 rounded-xl">
         <h2 className="text-sm font-bold text-white flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-red-500" /> Relatórios e Estatísticas Gerais
@@ -175,7 +203,7 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
         </div>
       </div>
 
-      {/* Cards de Métricas Principais (6 cards organizados) */}
+      {/* Cards de Métricas Principais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2">
           <div className="flex items-center justify-between text-zinc-400">
@@ -240,7 +268,6 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
 
       {/* Grid Inferior: Desempenho por Barbeiro + Ranking de Serviços */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Desempenho por Barbeiro */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 space-y-4">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <Users className="w-4 h-4 text-red-500" /> Desempenho por Profissional
@@ -268,7 +295,6 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
           </div>
         </div>
 
-        {/* Ranking de Serviços Mais Realizados */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 space-y-4">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <Scissors className="w-4 h-4 text-red-500" /> Serviços Mais Realizados (Ranking)
@@ -302,29 +328,69 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
         </div>
       </div>
 
-      {/* SEÇÃO NOVA: BANCO DE DADOS / HISTÓRICO COMPLETO DE ATENDIMENTOS PASSADOS */}
+      {/* SEÇÃO DE HISTÓRICO / BANCO DE DADOS COM FILTROS DE CALENDÁRIO E BARBEIRO */}
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <History className="w-4 h-4 text-red-500" /> Histórico Completo de Serviços (Banco de Dados)
           </h3>
 
-          {/* Campo de Busca Rápida no Histórico */}
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Buscar cliente, barbeiro ou serviço..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 text-xs text-white pl-9 pr-3 py-2 rounded-lg focus:outline-none focus:border-red-600"
-            />
+          {/* Filtros da Tabela de Histórico (Calendario + Barbeiro + Busca) */}
+          <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+            {/* Seletor de Data (Calendário) */}
+            <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg">
+              <Calendar className="w-3.5 h-3.5 text-red-500" />
+              <input
+                type="date"
+                value={historySelectedDate}
+                onChange={(e) => setHistorySelectedDate(e.target.value)}
+                className="bg-transparent text-xs text-white focus:outline-none cursor-pointer"
+              />
+              {historySelectedDate && (
+                <button 
+                  onClick={() => setHistorySelectedDate("")}
+                  className="text-zinc-400 hover:text-white ml-1"
+                  title="Limpar data"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Seletor / Ordenação por Barbeiro */}
+            <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg">
+              <UserCheck className="w-3.5 h-3.5 text-red-500" />
+              <select
+                value={historySelectedBarber}
+                onChange={(e) => setHistorySelectedBarber(e.target.value)}
+                className="bg-transparent text-xs text-white focus:outline-none cursor-pointer"
+              >
+                <option value="" className="bg-zinc-900 text-white">Todos os Barbeiros</option>
+                {availableBarbers.map((barber) => (
+                  <option key={barber} value={barber} className="bg-zinc-900 text-white">
+                    {barber}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Caixa de Texto de Busca Rápida */}
+            <div className="relative flex-1 sm:w-60">
+              <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-zinc-400" />
+              <input
+                type="text"
+                placeholder="Buscar cliente ou serviço..."
+                value={historySearchTerm}
+                onChange={(e) => setHistorySearchTerm(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 text-xs text-white pl-9 pr-3 py-2 rounded-lg focus:outline-none focus:border-red-600"
+              />
+            </div>
           </div>
         </div>
 
         {historyBookings.length === 0 ? (
           <div className="text-center py-10 text-xs text-zinc-400 border border-zinc-800/80 rounded-lg bg-zinc-900/40">
-            Nenhum registro encontrado no histórico.
+            Nenhum registro encontrado para os filtros selecionados.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -342,7 +408,6 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
                 {historyBookings.map((item) => {
                   const status = (item.status || "pending").toLowerCase()
                   
-                  // Estilos customizados por status
                   let statusBadge = <span className="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded font-medium">Pendente</span>
                   if (status === "completed" || status === "concluído") {
                     statusBadge = <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-medium">Concluído</span>
