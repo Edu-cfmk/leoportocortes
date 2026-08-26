@@ -56,35 +56,36 @@ export function BookingsTab({
     setSelectedDate(today)
   }
 
-  // 1. Função de ordenação cronológica universal (Data + Horário) do mais perto para o mais longe
+  // Função de ordenação cronológica universal (Data + Horário)
   const sortBookingsChronologically = (list: any[]) => {
     return [...list].sort((a, b) => {
       const dateA = a.booking_date ? a.booking_date.split("T")[0] : ""
       const dateB = b.booking_date ? b.booking_date.split("T")[0] : ""
 
       if (dateA !== dateB) {
-        return dateA.localeCompare(dateB) // Da data mais antiga/próxima para a mais distante
+        return dateA.localeCompare(dateB)
       }
 
-      // Se for o mesmo dia, ordena pelo horário (do primeiro ao último, ex: 08:00 antes de 14:00)
       const timeA = a.booking_time || ""
       const timeB = b.booking_time || ""
       return timeA.localeCompare(timeB)
     })
   }
 
-  // Filtro por data selecionada (se houver)
-  const filteredBookings = (bookings || []).filter(item => {
+  // FILTRO PRINCIPAL: Filtra por data (se houver) E OBRIGATORIAMENTE mostra apenas os pendentes na lista ativa
+  const activeBookings = (bookings || []).filter(item => {
+    // Esconde os cancelados e concluídos da listagem diária operacional
+    if (item.status && item.status !== "pending") return false
+
     if (!selectedDate) return true 
     if (!item.booking_date) return false
     const itemDateOnly = item.booking_date.split("T")[0]
     return itemDateOnly === selectedDate
   })
 
-  // Aplica a ordenação correta na listagem principal
-  const sortedFilteredBookings = sortBookingsChronologically(filteredBookings)
+  const sortedActiveBookings = sortBookingsChronologically(activeBookings)
 
-  // Próximos 4 horários pendentes gerais (do mais perto para o mais longe, ignorando se há filtro de data ou não)
+  // Próximos 4 horários pendentes gerais
   const allPendingBookings = (bookings || []).filter(b => b.status === "pending")
   const sortedPendingBookings = sortBookingsChronologically(allPendingBookings)
   const upcomingBookings = sortedPendingBookings.slice(0, 4)
@@ -173,27 +174,24 @@ export function BookingsTab({
         </div>
       </div>
 
-      {/* Lista Principal de Agendamentos */}
+      {/* Lista Principal de Agendamentos Ativos */}
       <div className="space-y-3 pt-4">
         <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
           {selectedDate 
-            ? `Agendamentos do Dia ${formatDate(selectedDate)} (${sortedFilteredBookings.length})` 
-            : `Todos os Agendamentos em Ordem Cronológica (${sortedFilteredBookings.length})`}
+            ? `Agendamentos Pendentes do Dia ${formatDate(selectedDate)} (${sortedActiveBookings.length})` 
+            : `Todos os Agendamentos Pendentes em Ordem Cronológica (${sortedActiveBookings.length})`}
         </h2>
 
-        {sortedFilteredBookings.length === 0 ? (
+        {sortedActiveBookings.length === 0 ? (
           <div className="text-center py-10 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-400 text-sm">
-            Nenhum registro encontrado para este filtro.
+            Nenhum agendamento pendente encontrado para este filtro.
           </div>
         ) : (
           <div className="grid gap-3">
-            {sortedFilteredBookings.map((item) => (
+            {sortedActiveBookings.map((item) => (
               <div 
                 key={item.id} 
-                className={`bg-zinc-950 border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all ${
-                  item.status === "completed" ? "border-emerald-900/40 opacity-75" :
-                  item.status === "canceled" ? "border-rose-900/40 opacity-60" : "border-zinc-800 hover:border-zinc-700"
-                }`}
+                className="bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all"
               >
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -201,16 +199,6 @@ export function BookingsTab({
                       {item.booking_date ? `${formatDate(item.booking_date)} às ${item.booking_time}` : item.booking_time}
                     </span>
                     <span className="text-sm font-bold text-white">{item.client_name}</span>
-                    {item.status === "completed" && (
-                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-2 py-0.5 rounded flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> Concluído
-                      </span>
-                    )}
-                    {item.status === "canceled" && (
-                      <span className="text-[10px] font-bold text-rose-400 bg-rose-950/80 border border-rose-800 px-2 py-0.5 rounded flex items-center gap-1">
-                        <XCircle className="w-3 h-3" /> Cancelado
-                      </span>
-                    )}
                   </div>
 
                   <p className="text-xs text-zinc-300 font-medium">
@@ -230,22 +218,18 @@ export function BookingsTab({
                 </div>
 
                 <div className="flex items-center gap-2 self-end sm:self-center">
-                  {item.status !== "completed" && (
-                    <button 
-                      onClick={() => handleUpdateStatus(item.id, "completed")} 
-                      className="px-3 py-1.5 text-xs font-bold bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 rounded-lg transition-colors"
-                    >
-                      Concluído
-                    </button>
-                  )}
-                  {item.status !== "canceled" && (
-                    <button 
-                      onClick={() => handleUpdateStatus(item.id, "canceled")} 
-                      className="px-3 py-1.5 text-xs font-bold bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded-lg transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                  )}
+                  <button 
+                    onClick={() => handleUpdateStatus(item.id, "completed")} 
+                    className="px-3 py-1.5 text-xs font-bold bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 rounded-lg transition-colors"
+                  >
+                    Concluído
+                  </button>
+                  <button 
+                    onClick={() => handleUpdateStatus(item.id, "canceled")} 
+                    className="px-3 py-1.5 text-xs font-bold bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
                 </div>
               </div>
             ))}
