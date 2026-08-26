@@ -72,10 +72,14 @@ export function BookingsTab({
     })
   }
 
-  // FILTRO PRINCIPAL: Filtra por data (se houver) E OBRIGATORIAMENTE mostra apenas os pendentes na lista ativa
+  // FILTRO PRINCIPAL CORRIGIDO: Mostra tudo o que NÃO foi concluído nem cancelado (exibe 'confirmed', 'pending' ou nulos)
   const activeBookings = (bookings || []).filter(item => {
-    // Esconde os cancelados e concluídos da listagem diária operacional
-    if (item.status && item.status !== "pending") return false
+    const status = (item.status || "").toLowerCase()
+    
+    // Esconde apenas os que já foram finalizados ou cancelados da tela principal
+    if (status === "completed" || status === "canceled" || status === "concluído") {
+      return false
+    }
 
     if (!selectedDate) return true 
     if (!item.booking_date) return false
@@ -85,9 +89,12 @@ export function BookingsTab({
 
   const sortedActiveBookings = sortBookingsChronologically(activeBookings)
 
-  // Próximos 4 horários pendentes gerais
-  const allPendingBookings = (bookings || []).filter(b => b.status === "pending")
-  const sortedPendingBookings = sortBookingsChronologically(allPendingBookings)
+  // Próximos horários ativos gerais (excluindo concluídos e cancelados)
+  const allActiveBookings = (bookings || []).filter(b => {
+    const status = (b.status || "").toLowerCase()
+    return status !== "completed" && status !== "canceled" && status !== "concluído"
+  })
+  const sortedPendingBookings = sortBookingsChronologically(allActiveBookings)
   const upcomingBookings = sortedPendingBookings.slice(0, 4)
 
   return (
@@ -129,12 +136,12 @@ export function BookingsTab({
       {/* Próximos 4 Horários Mais Perto */}
       <div className="space-y-3">
         <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-          <Clock3 className="w-4 h-4 text-red-500" /> Próximos 4 Horários Pendentes
+          <Clock3 className="w-4 h-4 text-red-500" /> Próximos 4 Horários Ativos
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {upcomingBookings.length === 0 ? (
             <div className="col-span-full py-6 text-center text-xs text-zinc-400 bg-zinc-950/60 rounded-xl border border-zinc-800">
-              Nenhum agendamento pendente encontrado.
+              Nenhum agendamento ativo encontrado.
             </div>
           ) : (
             upcomingBookings.map((item) => (
@@ -178,13 +185,13 @@ export function BookingsTab({
       <div className="space-y-3 pt-4">
         <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
           {selectedDate 
-            ? `Agendamentos Pendentes do Dia ${formatDate(selectedDate)} (${sortedActiveBookings.length})` 
-            : `Todos os Agendamentos Pendentes em Ordem Cronológica (${sortedActiveBookings.length})`}
+            ? `Agendamentos do Dia ${formatDate(selectedDate)} (${sortedActiveBookings.length})` 
+            : `Todos os Agendamentos Ativos em Ordem Cronológica (${sortedActiveBookings.length})`}
         </h2>
 
         {sortedActiveBookings.length === 0 ? (
           <div className="text-center py-10 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-400 text-sm">
-            Nenhum agendamento pendente encontrado para este filtro.
+            Nenhum agendamento ativo encontrado para este filtro.
           </div>
         ) : (
           <div className="grid gap-3">
