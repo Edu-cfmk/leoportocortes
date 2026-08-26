@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { BarChart3, DollarSign, Scissors, Users, CalendarCheck, TrendingUp, Filter, AlertCircle, Wallet } from "lucide-react"
+import { BarChart3, DollarSign, Scissors, Users, CalendarCheck, TrendingUp, Filter, AlertCircle, Wallet, History, Search } from "lucide-react"
 
 interface ReportsTabProps {
   bookings: any[]
@@ -10,6 +10,9 @@ interface ReportsTabProps {
 export function ReportsTab({ bookings }: ReportsTabProps) {
   // Filtro de período: "all", "today", "month"
   const [periodFilter, setPeriodFilter] = useState<"all" | "today" | "month">("month")
+  
+  // Estado para busca interna no histórico de serviços
+  const [searchTerm, setSearchTerm] = useState("")
 
   // Filtragem dos agendamentos conforme o período selecionado
   const filteredBookings = useMemo(() => {
@@ -108,6 +111,37 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
       topServices
     }
   }, [filteredBookings])
+
+  // Função auxiliar para formatar YYYY-MM-DD para DD/MM/AAAA
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return ""
+    const parts = dateStr.split("-")
+    if (parts.length !== 3) return dateStr
+    return `${parts[2]}/${parts[1]}/${parts[0]}`
+  }
+
+  // Lista para o Histórico de Serviços Passados (com busca por texto)
+  const historyBookings = useMemo(() => {
+    let list = bookings || []
+    
+    // Ordena do mais recente para o mais antigo
+    list = [...list].sort((a, b) => {
+      const dateA = a.booking_date || ""
+      const dateB = b.booking_date || ""
+      if (dateA !== dateB) return dateB.localeCompare(dateA)
+      return (b.booking_time || "").localeCompare(a.booking_time || "")
+    })
+
+    if (!searchTerm.trim()) return list
+
+    const term = searchTerm.toLowerCase()
+    return list.filter(item => 
+      (item.client_name && item.client_name.toLowerCase().includes(term)) ||
+      (item.barber_name && item.barber_name.toLowerCase().includes(term)) ||
+      (item.service_name && item.service_name.toLowerCase().includes(term)) ||
+      (item.client_phone && item.client_phone.includes(term))
+    )
+  }, [bookings, searchTerm])
 
   return (
     <div className="space-y-6">
@@ -266,6 +300,82 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
             )}
           </div>
         </div>
+      </div>
+
+      {/* SEÇÃO NOVA: BANCO DE DADOS / HISTÓRICO COMPLETO DE ATENDIMENTOS PASSADOS */}
+      <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <History className="w-4 h-4 text-red-500" /> Histórico Completo de Serviços (Banco de Dados)
+          </h3>
+
+          {/* Campo de Busca Rápida no Histórico */}
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Buscar cliente, barbeiro ou serviço..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-800 text-xs text-white pl-9 pr-3 py-2 rounded-lg focus:outline-none focus:border-red-600"
+            />
+          </div>
+        </div>
+
+        {historyBookings.length === 0 ? (
+          <div className="text-center py-10 text-xs text-zinc-400 border border-zinc-800/80 rounded-lg bg-zinc-900/40">
+            Nenhum registro encontrado no histórico.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-zinc-800 text-[11px] text-zinc-400 uppercase tracking-wider">
+                  <th className="py-2.5 px-3">Data / Hora</th>
+                  <th className="py-2.5 px-3">Cliente</th>
+                  <th className="py-2.5 px-3">Serviço / Preço</th>
+                  <th className="py-2.5 px-3">Barbeiro</th>
+                  <th className="py-2.5 px-3 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-900 text-xs">
+                {historyBookings.map((item) => {
+                  const status = (item.status || "pending").toLowerCase()
+                  
+                  // Estilos customizados por status
+                  let statusBadge = <span className="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded font-medium">Pendente</span>
+                  if (status === "completed" || status === "concluído") {
+                    statusBadge = <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-medium">Concluído</span>
+                  } else if (status === "canceled") {
+                    statusBadge = <span className="bg-rose-950 text-rose-300 border border-rose-800 px-2 py-0.5 rounded font-medium">Cancelado</span>
+                  }
+
+                  return (
+                    <tr key={item.id} className="hover:bg-zinc-900/50 transition-colors">
+                      <td className="py-3 px-3 text-zinc-300 font-medium whitespace-nowrap">
+                        {formatDate(item.booking_date)} às {item.booking_time}
+                      </td>
+                      <td className="py-3 px-3 text-white font-bold">
+                        {item.client_name}
+                        <span className="block text-[11px] font-normal text-zinc-400">{item.client_phone}</span>
+                      </td>
+                      <td className="py-3 px-3 text-zinc-300">
+                        <span className="text-white font-semibold">{item.service_name}</span>
+                        <span className="text-zinc-400 ml-1.5">({item.service_price || "R$ 0,00"})</span>
+                      </td>
+                      <td className="py-3 px-3 text-red-400 font-medium">
+                        {item.barber_name || "Não atribuído"}
+                      </td>
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
+                        {statusBadge}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )
