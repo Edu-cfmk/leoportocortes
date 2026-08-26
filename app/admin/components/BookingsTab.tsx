@@ -40,7 +40,7 @@ export function BookingsTab({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [selectedDate]) // Recarrega se a data mudar
 
   // Função auxiliar para formatar YYYY-MM-DD para DD/MM/AAAA
   const formatDate = (dateStr: string) => {
@@ -56,7 +56,17 @@ export function BookingsTab({
     setSelectedDate(today)
   }
 
-  const upcomingBookings = (bookings || []).filter(b => b.status === "pending").slice(0, 4)
+  // Filtro rigoroso: Se selectedDate estiver preenchida, filtra exatamente por ela (YYYY-MM-DD)
+  const filteredBookings = (bookings || []).filter(item => {
+    if (!selectedDate) return true // Se não há data selecionada, mostra todos
+    if (!item.booking_date) return false
+    
+    // Normaliza a data do banco para comparar apenas a parte YYYY-MM-DD (ex: pegando os 10 primeiros caracteres)
+    const itemDateOnly = item.booking_date.split("T")[0]
+    return itemDateOnly === selectedDate
+  })
+
+  const upcomingBookings = (filteredBookings || []).filter(b => b.status === "pending").slice(0, 4)
 
   return (
     <div className="space-y-6">
@@ -102,7 +112,7 @@ export function BookingsTab({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {upcomingBookings.length === 0 ? (
             <div className="col-span-full py-6 text-center text-xs text-zinc-400 bg-zinc-950/60 rounded-xl border border-zinc-800">
-              Nenhum agendamento pendente.
+              Nenhum agendamento pendente para esta data.
             </div>
           ) : (
             upcomingBookings.map((item) => (
@@ -146,17 +156,17 @@ export function BookingsTab({
       <div className="space-y-3 pt-4">
         <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
           {selectedDate 
-            ? `Agendamentos do Dia ${formatDate(selectedDate)} (${(bookings || []).length})` 
-            : `Todos os Agendamentos em Ordem (${(bookings || []).length})`}
+            ? `Agendamentos do Dia ${formatDate(selectedDate)} (${filteredBookings.length})` 
+            : `Todos os Agendamentos em Ordem (${filteredBookings.length})`}
         </h2>
 
-        {(bookings || []).length === 0 ? (
+        {filteredBookings.length === 0 ? (
           <div className="text-center py-10 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-400 text-sm">
             Nenhum registro encontrado para este filtro.
           </div>
         ) : (
           <div className="grid gap-3">
-            {bookings.map((item) => (
+            {filteredBookings.map((item) => (
               <div 
                 key={item.id} 
                 className={`bg-zinc-950 border rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all ${
