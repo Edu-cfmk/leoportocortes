@@ -20,31 +20,40 @@ export function Step3Barbers({ selectedBarber, onSelectBarber, onNext, onBack }:
   useEffect(() => {
     async function fetchBarbers() {
       try {
-        const { data, error } = await supabase.from("barbers").select("*")
+        // Buscamos da tabela de usuários/colaboradores do admin ("users")
+        // Caso sua tabela tenha outro nome exato (ex: "collaborators"), basta trocar abaixo
+        const { data, error } = await supabase.from("users").select("*")
+        
         if (error) {
-          console.error("Erro ao buscar barbeiros:", error)
+          console.error("Erro ao buscar colaboradores:", error)
+          // Fallback caso a tabela seja "barbers"
+          const { data: dataBarbers } = await supabase.from("barbers").select("*")
+          if (dataBarbers) processarDados(dataBarbers)
         } else if (data) {
-          const fetchedBarbers: Barber[] = data.map((item: any) => {
-            // Se o cargo for ADM/Admin, força para "Barbeiro" na visão do cliente
-            let role = item.role || "Barbeiro"
-            if (role.toLowerCase() === "adm" || role.toLowerCase() === "admin") {
-              role = "Barbeiro"
-            }
-
-            return {
-              id: item.id,
-              name: item.name,
-              role: role,
-            }
-          })
-
-          setBarbers(fetchedBarbers)
+          processarDados(data)
         }
       } catch (err) {
         console.error("Erro inesperado:", err)
       } finally {
         setLoading(false)
       }
+    }
+
+    function processarDados(items: any[]) {
+      const fetchedBarbers: Barber[] = items.map((item: any) => {
+        let role = item.role || item.cargo || "Barbeiro"
+        if (role.toLowerCase() === "adm" || role.toLowerCase() === "admin") {
+          role = "Barbeiro"
+        }
+
+        return {
+          id: item.id,
+          name: item.name || item.username || item.usuario, // Compatível com campos de nome ou username
+          role: role,
+        }
+      })
+
+      setBarbers(fetchedBarbers)
     }
 
     fetchBarbers()
