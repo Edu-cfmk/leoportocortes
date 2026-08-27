@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { MapPin, Phone, ShieldCheck, Code2, Mail, Calendar, Download, Smartphone, X, ExternalLink } from "lucide-react"
+import { MapPin, Phone, ShieldCheck, Code2, Mail, Calendar, Download, Smartphone, X, ExternalLink, Sparkles } from "lucide-react"
 import { FaInstagram, FaWhatsapp, FaApple } from "react-icons/fa"
 
 export default function Home() {
@@ -140,10 +140,13 @@ export default function Home() {
 
         <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
           <CardContent className="p-5 space-y-2">
-            <h3 className="font-bold text-lg text-zinc-100 tracking-tight">Preço Médio</h3>
+            <h3 className="font-bold text-lg text-zinc-100 tracking-tight flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-red-500" /> Nossos Diferenciais
+            </h3>
             <div className="text-sm text-zinc-400 space-y-1 font-normal">
-              <p>Corte R$ 45 - Barba: R$ 35</p>
-              <p>Combo: R$ 70</p>
+              <p>• Atendimento com hora marcada</p>
+              <p>• Ambiente climatizado e moderno</p>
+              <p>• Café cortesia para clientes</p>
             </div>
           </CardContent>
         </Card>
