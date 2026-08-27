@@ -14,51 +14,35 @@ interface Step3Props {
 }
 
 export function Step3Barbers({ selectedBarber, onSelectBarber, onNext, onBack }: Step3Props) {
-  const [barbers, setBarbers] = useState<Barber[]>([])
+  const [barbers, setBarbers] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(true)
 
   useEffect(() => {
     async function fetchBarbers() {
       try {
-        const [resBarbers, resUsers, resAdminUsers] = await Promise.all([
-          supabase.from("barbers").select("*"),
-          supabase.from("users").select("*"),
-          supabase.from("admin_users").select("*")
-        ])
+        // Busca direto da tabela admin_users onde os colaboradores e fotos são salvos
+        const { data, error } = await supabase.from("admin_users").select("*")
 
-        const listaUnificada: Barber[] = []
-        const nomesVistos = new Set<string>()
-
-        // Desenvolvedor que não deve aparecer
-        const nomesIgnorados = ["eduardodev", "eduardo dev"]
-
-        const processarItem = (item: any) => {
-          if (!item) return
-          const nomeOriginal = item.name || item.username || item.usuario || ""
-          const nomeLower = nomeOriginal.trim().toLowerCase()
-
-          if (!nomeLower || nomesIgnorados.includes(nomeLower)) {
-            return
-          }
-
-          // Se o nome ainda não foi adicionado à lista, adiciona (evita duplicados por nome/tabelas diferentes)
-          if (!nomesVistos.has(nomeLower)) {
-            nomesVistos.add(nomeLower)
-            listaUnificada.push({
-              id: item.id,
-              name: nomeOriginal,
-              role: "Barbeiro"
-            })
-          }
+        if (error) {
+          console.error("Erro ao buscar profissionais:", error)
+          return
         }
 
-        if (resBarbers.data) resBarbers.data.forEach(processarItem)
-        if (resUsers.data) resUsers.data.forEach(processarItem)
-        if (resAdminUsers.data) resAdminUsers.data.forEach(processarItem)
+        const nomesIgnorados = ["eduardodev", "eduardo dev"]
+        const listaFiltrada = (data || []).filter((item) => {
+          const nome = (item.username || item.name || "").trim().toLowerCase()
+          if (!nome || nomesIgnorados.includes(nome)) return false
+          return true
+        }).map((item) => ({
+          id: item.id,
+          name: item.username || item.name,
+          role: item.role || "Barbeiro",
+          avatar_url: item.avatar_url || null
+        }))
 
-        setBarbers(listaUnificada)
+        setBarbers(listaFiltrada)
       } catch (err) {
-        console.error("Erro inesperado ao buscar profissionais:", err)
+        console.error("Erro inesperado:", err)
       } finally {
         setLoading(false)
       }
@@ -95,12 +79,25 @@ export function Step3Barbers({ selectedBarber, onSelectBarber, onNext, onBack }:
               <div
                 key={b.id}
                 onClick={() => onSelectBarber(b)}
-                className={`cursor-pointer p-4 rounded-lg border transition-all flex items-center justify-between ${
+                className={`cursor-pointer p-4 rounded-lg border transition-all flex items-center gap-4 ${
                   isSelected 
                     ? "bg-red-950/50 border-red-600 text-white shadow-md" 
                     : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-700"
                 }`}
               >
+                {/* Círculo da Foto do Barbeiro */}
+                <div className="w-14 h-14 rounded-full overflow-hidden bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center shrink-0">
+                  {b.avatar_url ? (
+                    <img 
+                      src={b.avatar_url} 
+                      alt={b.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-6 h-6 text-zinc-500" />
+                  )}
+                </div>
+
                 <div>
                   <p className="font-semibold text-base">{b.name}</p>
                   <p className="text-xs text-zinc-400">{b.role}</p>
