@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { MapPin, Phone, ShieldCheck, Code2, Mail, Calendar, Download, Smartphone, X } from "lucide-react"
+import { MapPin, Phone, ShieldCheck, Code2, Mail, Calendar, Download, Smartphone, X, ExternalLink } from "lucide-react"
 import { FaInstagram, FaWhatsapp, FaApple } from "react-icons/fa"
 
 export default function Home() {
@@ -22,6 +22,8 @@ export default function Home() {
 
   const [currentCutIndex, setCurrentCutIndex] = useState(0)
   const [showIosModal, setShowIosModal] = useState(false)
+
+  const googleMapsUrl = "https://maps.app.goo.gl/6HSELW2m3GEBXr4VA"
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -143,6 +145,28 @@ export default function Home() {
               <p>Corte R$ 45 - Barba: R$ 35</p>
               <p>Combo: R$ 70</p>
             </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Seção de Localização */}
+      <section className="max-w-4xl mx-auto px-4 mt-6">
+        <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
+          <CardContent className="p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="space-y-1 text-center md:text-left">
+              <h3 className="font-bold text-lg text-zinc-100 tracking-tight flex items-center justify-center md:justify-start gap-2">
+                <MapPin className="w-5 h-5 text-red-500" /> Nossa Localização
+              </h3>
+              <p className="text-sm text-zinc-400 font-normal leading-relaxed">
+                Avenida Lauro Camargo da Silveira, 964 <br />
+                <span className="text-zinc-500 text-xs">Jardim Aeroporto, Limeira - SP, 13481-550</span>
+              </p>
+            </div>
+            <a href={googleMapsUrl} target="_blank" rel="noreferrer">
+              <Button size="sm" variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 gap-2 text-xs font-semibold shrink-0">
+                <ExternalLink className="w-4 h-4 text-red-500" /> Abrir no Google Maps
+              </Button>
+            </a>
           </CardContent>
         </Card>
       </section>
