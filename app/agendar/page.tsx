@@ -95,11 +95,16 @@ export default function AgendarPage() {
               <div>
                 <strong className="text-zinc-100">Serviços:</strong>
                 <ul className="list-disc list-inside mt-1 text-zinc-300">
-                  {booking.services.map((s, idx) => (
-                    <li key={idx}>
-                      {s.name} ({s.price})
-                    </li>
-                  ))}
+                  {booking.services.map((s, idx) => {
+                    const priceFormatted = s.price_in_cents 
+                      ? `R$ ${(s.price_in_cents / 100).toFixed(2).replace('.', ',')}` 
+                      : s.price;
+                    return (
+                      <li key={idx}>
+                        {s.name} {priceFormatted ? `- ${priceFormatted}` : ""}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
               <p>
