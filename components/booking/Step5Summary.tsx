@@ -122,8 +122,8 @@ export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
                   <div key={idx} className="flex justify-between items-center text-sm">
                     <div className="flex items-center gap-2">
                       <span className="text-white font-medium">{s.name}</span>
-                      {/* Mostra a duração do serviço apenas se ela existir */}
-                      {s.duration && (
+                      {/* Mostra a duração apenas se existir e não for vazia */}
+                      {s.duration && s.duration.trim() !== "" && (
                         <span className="text-xs text-zinc-500 bg-zinc-900 px-1.5 py-0.5 rounded">
                           ({s.duration})
                         </span>
