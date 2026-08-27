@@ -119,15 +119,27 @@ export function Step5Summary({ booking, onFinish, onBack }: Step5Props) {
                   ? `R$ ${(s.price_in_cents / 100).toFixed(2).replace('.', ',')}` 
                   : s.price;
                 return (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span className="text-white font-medium">{s.name}</span>
+                  <div key={idx} className="flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-medium">{s.name}</span>
+                      {/* Mostra a duração do serviço apenas se ela existir */}
+                      {s.duration && (
+                        <span className="text-xs text-zinc-500 bg-zinc-900 px-1.5 py-0.5 rounded">
+                          ({s.duration})
+                        </span>
+                      )}
+                    </div>
                     <span className="text-red-400 font-semibold">{p}</span>
                   </div>
                 );
               })}
             </div>
+            
             <div className="flex justify-between items-center pt-2 mt-2 border-t border-zinc-900 text-sm">
-              <span className="font-bold text-zinc-300">Total</span>
+              <div>
+                <span className="font-bold text-zinc-300">Total</span>
+                <span className="text-xs text-zinc-500 block">Duração estimada: {calculateTotalDuration()}</span>
+              </div>
               <span className="font-bold text-red-500 text-base">{formattedTotal()}</span>
             </div>
           </div>
