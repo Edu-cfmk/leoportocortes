@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { MapPin, Phone, ShieldCheck, Code2, Mail, Calendar, Download } from "lucide-react"
-import { FaInstagram, FaWhatsapp } from "react-icons/fa"
+import { MapPin, Phone, ShieldCheck, Code2, Mail, Calendar, Download, Smartphone, X } from "lucide-react"
+import { FaInstagram, FaWhatsapp, FaApple } from "react-icons/fa"
 
 export default function Home() {
   const cuts = [
@@ -21,6 +21,7 @@ export default function Home() {
   ]
 
   const [currentCutIndex, setCurrentCutIndex] = useState(0)
+  const [showIosModal, setShowIosModal] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -58,9 +59,52 @@ export default function Home() {
                 <Download className="w-4 h-4" /> Baixar App (Android)
               </Button>
             </a>
+
+            {/* Botão para abrir o guia de instalação no iOS */}
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => setShowIosModal(true)}
+              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+            >
+              <FaApple className="w-4 h-4" /> Instalar App (iPhone)
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Modal de Instruções para iOS (iPhone) */}
+      {showIosModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-sm w-full p-6 text-zinc-100 relative space-y-4 shadow-2xl">
+            <button 
+              onClick={() => setShowIosModal(false)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2 text-white font-bold text-lg">
+              <FaApple className="w-6 h-6 text-zinc-200" />
+              <h3>Instalar no iPhone (iOS)</h3>
+            </div>
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              Para instalar o aplicativo da barbearia diretamente na tela inicial do seu iPhone, siga estes passos simples pelo navegador <strong className="text-white">Safari</strong>:
+            </p>
+            <ol className="text-xs text-zinc-300 space-y-2 list-decimal list-inside bg-zinc-950 p-3 rounded-lg border border-zinc-800">
+              <li>Abra este site no navegador <strong>Safari</strong>.</li>
+              <li>Toque no botão de <strong>Compartilhar</strong> <span className="inline-block px-1 bg-zinc-800 rounded text-blue-400">⎋</span> na barra inferior do iPhone.</li>
+              <li>Role as opções para baixo e toque em <strong className="text-white">&quot;Adicionar à Tela de Início&quot;</strong>.</li>
+              <li>Confirme tocando em <strong>&quot;Adicionar&quot;</strong> no canto superior direito.</li>
+            </ol>
+            <Button 
+              onClick={() => setShowIosModal(false)}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold text-xs"
+            >
+              Entendi
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Cartões de Informações */}
       <section className="max-w-4xl mx-auto px-4 mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
