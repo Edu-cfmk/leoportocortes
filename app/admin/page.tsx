@@ -213,6 +213,19 @@ export default function AdminPage() {
     }
   };
 
+  const handleDeleteBooking = async (id: string) => {
+    const { error } = await supabase
+      .from("bookings")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      alert("Erro ao excluir agendamento: " + error.message);
+    } else {
+      fetchAllBookingsForReports();
+    }
+  };
+
   const fetchServices = async () => {
     const { data } = await supabase.from("services").select("*").order("name");
     setServices(data || []);
@@ -276,7 +289,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Abas de Navegação: Grid elegante no Mobile / Botões horizontais no Desktop */}
+        {/* Abas de Navegação */}
         <div className="border-b border-zinc-800 pb-4">
           <div className="grid grid-cols-2 gap-2 sm:hidden">
             {canSeeBookings && (
@@ -391,7 +404,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Conteúdo das Abas com verificação de segurança */}
+        {/* Conteúdo das Abas */}
         {activeTab === "bookings" && canSeeBookings && (
           <BookingsTab
             selectedDate={selectedDate}
@@ -446,7 +459,7 @@ export default function AdminPage() {
             setSelectedBarber={setSelectedBarber}
           />
         )}
-        {activeTab === "reports" && canSeeReports && <ReportsTab bookings={bookings} />}
+        {activeTab === "reports" && <ReportsTab bookings={bookings} onDeleteBooking={handleDeleteBooking} />}
         {activeTab === "permissions" && hasFullAccess && <PermissionsTab />}
       </div>
     </div>

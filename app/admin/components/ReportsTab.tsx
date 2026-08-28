@@ -1,13 +1,14 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { BarChart3, DollarSign, Scissors, Users, CalendarCheck, TrendingUp, Filter, AlertCircle, Wallet, History, Search, Calendar, UserCheck, X, Clock } from "lucide-react"
+import { BarChart3, DollarSign, Scissors, Users, CalendarCheck, TrendingUp, Filter, AlertCircle, Wallet, History, Search, Calendar, UserCheck, X, Clock, Trash2 } from "lucide-react"
 
 interface ReportsTabProps {
   bookings: any[]
+  onDeleteBooking?: (id: string) => void
 }
 
-export function ReportsTab({ bookings }: ReportsTabProps) {
+export function ReportsTab({ bookings, onDeleteBooking }: ReportsTabProps) {
   // Filtro de período geral superior: "all", "today", "month"
   const [periodFilter, setPeriodFilter] = useState<"all" | "today" | "month">("month")
   
@@ -434,7 +435,7 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
                   <th className="py-2.5 px-3">Cliente</th>
                   <th className="py-2.5 px-3">Serviço / Preço</th>
                   <th className="py-2.5 px-3">Barbeiro</th>
-                  <th className="py-2.5 px-3 text-center">Status</th>
+                  <th className="py-2.5 px-3 text-center">Status / Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-900 text-xs">
@@ -465,7 +466,22 @@ export function ReportsTab({ bookings }: ReportsTabProps) {
                         {item.barber_name || "Não atribuído"}
                       </td>
                       <td className="py-3 px-3 text-center whitespace-nowrap">
-                        {statusBadge}
+                        <div className="flex items-center justify-center gap-2">
+                          {statusBadge}
+                          {onDeleteBooking && (
+                            <button
+                              onClick={() => {
+                                if (confirm(`Deseja realmente excluir o agendamento de ${item.client_name}?`)) {
+                                  onDeleteBooking(item.id)
+                                }
+                              }}
+                              className="p-1.5 bg-zinc-900 border border-zinc-800 hover:border-rose-800 text-zinc-400 hover:text-rose-400 rounded transition-colors"
+                              title="Excluir agendamento"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
